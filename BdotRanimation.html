@@ -1,9 +1,8 @@
 <!DOCTYPE html>
-<!-- saved from url=(0043)file:///C:/Users/mailb/Downloads/index.html -->
+<!-- saved from url=(0045)file:///C:/Users/mailb/Downloads/index_1.html -->
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <title>BdotRanimation</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -24,14 +23,15 @@ body{font-family:'Consolas','JetBrains Mono',monospace;background:var(--bg);colo
 .hl{font-size:9px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;}
 .hv{font-size:11px;color:var(--text);}
 #hdr-spacer{flex:1;}
+#hdr-folder{font-size:9px;color:var(--text3);padding:4px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:3px;cursor:pointer;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis;}
+#hdr-folder:hover{border-color:var(--border2);color:var(--text2);}
 /* Replay speed controls */
 .spd{background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-family:inherit;font-size:10px;padding:3px 7px;cursor:pointer;border-radius:3px;transition:all .1s;}
 .spd:hover{border-color:var(--border2);color:var(--text);}
 .spd.active{background:var(--accent2);border-color:var(--accent);color:var(--accent);}
 #cur-time{font-size:14px;color:var(--accent);font-weight:700;letter-spacing:.04em;}
+#replay-file-sel{background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:10px;padding:3px 6px;border-radius:3px;}
 #hdr-range{font-size:11px;color:var(--text);}
-#replay-controls-bar{display:flex;align-items:center;gap:4px;padding:6px 0;flex-shrink:0;flex-wrap:wrap;}
-#replay-file-sel{display:none;}
 
 /* ── BODY: list + right ── */
 #body{display:flex;overflow:hidden;min-height:0;}
@@ -49,11 +49,9 @@ body{font-family:'Consolas','JetBrains Mono',monospace;background:var(--bg);colo
 .ii-name{font-size:11px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ii-desc{font-size:9px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ii-meta{font-size:9px;color:var(--text3);margin-top:2px;}
-#sb-file-section{border-top:1px solid var(--border);flex-shrink:0;}
-#sb-file-section-title{padding:6px 12px 3px;font-size:9px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;}
-.file-item{padding:5px 12px 5px 20px;cursor:pointer;font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .1s;}
-.file-item:hover{background:var(--bg3);}
-.file-item.active{color:var(--accent);}
+#list-bottom{padding:8px 10px;border-top:1px solid var(--border);flex-shrink:0;}
+#sb-flush-btn{width:100%;background:none;border:1px solid rgba(226,75,74,.2);color:rgba(226,75,74,.5);font-family:inherit;font-size:9px;padding:4px;border-radius:3px;cursor:pointer;letter-spacing:.06em;}
+#sb-flush-btn:hover{border-color:var(--red);color:var(--red);}
 
 /* ── RIGHT PANEL ── */
 #right-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;}
@@ -192,8 +190,7 @@ td input[type=number]{background:var(--bg4);border:1px solid transparent;color:v
 #btn-change-folder{display:none;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);font-family:inherit;font-size:10px;padding:5px 14px;border-radius:3px;cursor:pointer;}
 
 /* Compat hidden elements */
-#no-data,#hdr-inst,#hdr-inst-info,#hdr-replay-info,#save-status,#hdr-inst-sel,#hdr-new-inst,#sb-tag-legend,#sb-folder-name,#btn-open-relay{display:none;}
-#sb-file-section{display:none;}
+#no-data,#hdr-inst,#hdr-inst-info,#hdr-replay-info,#save-status,#hdr-inst-sel,#hdr-new-inst,#sb-file-list,#sb-tag-legend,#sb-folder-name,#btn-open-relay{display:none;}
 #hdr-file,#hdr-tag-count,#hdr-shape-count,#hdr-data-count,#hdr-file{display:none;}
 
 canvas{display:block;}
@@ -208,7 +205,32 @@ canvas{display:block;}
     <div id="logo-ver">data replay engine v0.4</div>
   </div>
   <div class="hsep"></div>
-  <span id="sb-status" style="font-size:9px;color:var(--text3);letter-spacing:.06em;">⏳ Connecting…</span>
+
+  <!-- Replay speed controls — always rendered, shown/hidden via JS -->
+  <div id="replay-speed-controls" style="display:none;align-items:center;gap:4px;">
+    <span style="font-size:9px;color:var(--text3);letter-spacing:.08em;margin-right:2px;">SPEED</span>
+    <button class="spd" data-speed="-10">−10x</button>
+    <button class="spd" data-speed="-5">−5x</button>
+    <button class="spd" data-speed="-2">−2x</button>
+    <button class="spd" data-speed="-1">−1x</button>
+    <button class="spd active" data-speed="0">⏸</button>
+    <button class="spd" data-speed="1">1x</button>
+    <button class="spd" data-speed="2">2x</button>
+    <button class="spd" data-speed="5">5x</button>
+    <button class="spd" data-speed="10">10x</button>
+    <div class="hsep"></div>
+    <select id="replay-file-sel"><option value="">— select file —</option></select>
+    <div class="hsep"></div>
+    <div class="hb">
+      <div class="hl">Range</div>
+      <div id="hdr-range" class="hv">—</div>
+    </div>
+    <div class="hsep"></div>
+    <div id="cur-time">—</div>
+  </div>
+
+  <div id="hdr-spacer"></div>
+  <div id="hdr-folder" onclick="document.getElementById(&#39;btn-pick-folder&#39;).click()" title="Click to change folder">📁 No folder selected</div>
 
   <!-- Hidden compat elements JS references -->
   <span id="hdr-inst" style="display:none"></span>
@@ -223,8 +245,8 @@ canvas{display:block;}
   <span id="save-status" style="display:none"></span>
   <span id="no-data" style="display:none"></span>
   <span id="sb-folder-name" style="display:none"></span>
+  <span id="sb-file-list" style="display:none"></span>
   <span id="sb-tag-legend" style="display:none"></span>
-  <select id="replay-file-sel" style="display:none"><option value="">— select file —</option></select>
 </header>
 
 <!-- ═══ BODY ═══ -->
@@ -237,9 +259,8 @@ canvas{display:block;}
       <button id="sb-new-btn" onclick="newInstance()">+ New</button><span id="btn-new-inst" style="display:none"></span>
     </div>
     <div id="sb-inst-list"></div>
-    <div id="sb-file-section">
-      <div id="sb-file-section-title">Data Files</div>
-      <div id="sb-file-list"></div>
+    <div id="list-bottom">
+      <button id="sb-flush-btn">⚠ Flush All Instances</button>
     </div>
   </div>
 
@@ -247,35 +268,28 @@ canvas{display:block;}
   <div id="right-panel">
 
     <!-- Instance sub-header: name + Setup/Replay buttons -->
-    <div id="inst-subheader" style="display: flex;">
-      <div id="subhdr-name">New Instance</div>
+    <div id="inst-subheader" style="display:none;">
+      <div id="subhdr-name">—</div>
       <button class="view-btn active" id="vbtn-setup" onclick="switchTab(&#39;instances&#39;)">⚙ Setup</button>
       <button class="view-btn" id="vbtn-replay" onclick="handleReplayNav()">▶ Replay</button>
     </div>
 
     <!-- No instance selected state -->
-    <div id="no-inst-msg" style="flex: 1 1 0%; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--text3); font-size: 12px;">
+    <div id="no-inst-msg" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text3);font-size:12px;">
       <div style="font-size:32px;opacity:.3;">🗂</div>
       <div>Select an instance or create a new one</div>
     </div>
 
     <!-- SETUP (inst-panel) -->
-    <div class="panel" id="inst-panel">
-      <!-- Splash / empty state (shown until an instance is opened or created) -->
-      <div id="inst-empty" style="flex: 1 1 0%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; color: var(--text3);">
-        <img src="logo.png" alt="BdotRanimation" style="width:180px;height:180px;object-fit:contain;opacity:.85;border-radius:50%;">
-        <div style="text-align:center;line-height:1.7;">
-          <div style="font-size:15px;font-weight:700;color:var(--text2);letter-spacing:.04em;">BdotRanimation</div>
-          <div style="font-size:11px;margin-top:4px;">Select an existing instance from the list,</div>
-          <div style="font-size:11px;">or create a new one to get started.</div>
-        </div>
-        <div style="display:flex;gap:10px;">
-          <button class="btn-primary" onclick="newInstance()" style="font-size:12px;padding:8px 20px;">＋ New Instance</button>
-        </div>
+    <div class="panel hidden" id="inst-panel">
+      <!-- Empty sub-state (no instance yet) -->
+      <div id="inst-empty" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--text3);font-size:11px;">
+        <div style="font-size:28px;opacity:.3;">🗂</div>
+        <div>Create a new instance with + New</div>
       </div>
 
       <!-- Instance form -->
-      <div id="inst-form" style="display: none; flex: 1 1 0%; flex-direction: column; overflow: hidden; min-height: 0px;">
+      <div id="inst-form" style="display:none;flex:1;flex-direction:column;overflow:hidden;min-height:0;">
         <!-- Left: metadata + tags -->
         <div id="setup-left">
 
@@ -283,6 +297,8 @@ canvas{display:block;}
             <span>Instance Details</span>
             <div style="display:flex;gap:4px;">
               <button class="btn-primary" id="btn-save-inst">💾 Save</button>
+              <button class="btn-secondary" id="btn-export-inst">⬇ Export</button>
+              <button class="btn-secondary" id="btn-import-inst">⬆ Import</button>
               <button class="btn-danger" id="btn-delete-inst" style="display:none;">✕ Delete</button>
             </div>
           </div>
@@ -335,7 +351,7 @@ canvas{display:block;}
             <button class="tbtn" id="id-tool-rect-d">▭↔ Dyn Rect</button>
             <button class="tbtn" id="id-tool-circ-d">◯↔ Dyn Ellipse</button>
             <div class="sep2"></div>
-            <div id="inst-shape-props" style="display: none;">
+            <div id="inst-shape-props">
               <label>Name</label><input type="text" id="isp-name">
               <label>Tag</label><select id="isp-tag"><option value="">—</option></select>
               <div id="isp-state-wrap" style="display:none;gap:4px;align-items:center;">
@@ -360,25 +376,6 @@ canvas{display:block;}
     <!-- REPLAY (replay-panel) -->
     <div class="panel hidden" id="replay-panel">
       <div id="replay-inner">
-        <div id="replay-controls-bar">
-          <span style="font-size:9px;color:var(--text3);letter-spacing:.08em;margin-right:2px;">SPEED</span>
-          <button class="spd" data-speed="-10">−10x</button>
-          <button class="spd" data-speed="-5">−5x</button>
-          <button class="spd" data-speed="-2">−2x</button>
-          <button class="spd" data-speed="-1">−1x</button>
-          <button class="spd active" data-speed="0">⏸</button>
-          <button class="spd" data-speed="1">1x</button>
-          <button class="spd" data-speed="2">2x</button>
-          <button class="spd" data-speed="5">5x</button>
-          <button class="spd" data-speed="10">10x</button>
-          <div class="hsep"></div>
-          <div class="hb">
-            <div class="hl">Range</div>
-            <div id="hdr-range" class="hv">—</div>
-          </div>
-          <div class="hsep"></div>
-          <div id="cur-time">—</div>
-        </div>
         <div class="chart-wrap" id="ov-wrap">
           <div class="chart-title">Overview</div>
           <canvas id="ov-canvas"></canvas>
@@ -430,276 +427,98 @@ canvas{display:block;}
 // Root folder handle stored in a tiny IDB just for the handle.
 // All data lives as real files in the chosen folder.
 // ══════════════════════════════════════════════════════════════
-let rootDirHandle = null;   // root: .../BdRanimation/
-
-// ── IndexedDB helpers for persisting the folder handle across page loads ──
-function _openHandleDB(){
-  return new Promise((res,rej)=>{
-    const r=indexedDB.open('bdotranimation_handles',1);
-    r.onupgradeneeded=e=>e.target.result.createObjectStore('handles');
-    r.onsuccess=e=>res(e.target.result);
-    r.onerror=e=>rej(e.target.error);
-  });
-}
-async function saveHandleToIDB(handle){
-  const db=await _openHandleDB();
-  return new Promise((res,rej)=>{
-    const tx=db.transaction('handles','readwrite');
-    tx.objectStore('handles').put(handle,'root');
-    tx.oncomplete=()=>res();
-    tx.onerror=e=>rej(e.target.error);
-  });
-}
-async function getHandleFromIDB(){
-  const db=await _openHandleDB();
-  return new Promise((res,rej)=>{
-    const tx=db.transaction('handles','readonly');
-    const req=tx.objectStore('handles').get('root');
-    req.onsuccess=e=>res(e.target.result||null);
-    req.onerror=e=>rej(e.target.error);
-  });
-}
-
-async function getOrCreateDir(dirHandle, name){
-  return await dirHandle.getDirectoryHandle(name, {create:true});
-}
-
-async function writeJsonToFolder(inst){
-  if(!rootDirHandle) return false;
-  try{
-    const instancesDir = await getOrCreateDir(rootDirHandle, 'instances');
-    const instDir = await getOrCreateDir(instancesDir, inst.id);
-    const fh = await instDir.getFileHandle(`${inst.id}.json`, {create:true});
-    const w = await fh.createWritable();
-    await w.write(JSON.stringify(inst, null, 2));
-    await w.close();
-    return true;
-  }catch(e){ console.warn('JSON write failed:', e); return false; }
-}
-
-async function writeCsvToFolder(instId, filename, text){
-  if(!rootDirHandle) return false;
-  try{
-    const instancesDir = await getOrCreateDir(rootDirHandle, 'instances');
-    const instDir = await getOrCreateDir(instancesDir, instId);
-    const dataDir = await getOrCreateDir(instDir, 'data');
-    const fh = await dataDir.getFileHandle(filename, {create:true});
-    const w = await fh.createWritable();
-    await w.write(text);
-    await w.close();
-    return true;
-  }catch(e){ console.warn('CSV write failed:', e); return false; }
-}
+// rootDirHandle removed — using Supabase
 
 // ══════════════════════════════════════════════════════════════
-// STORAGE — file-input based, works on file:// with no server
-// Instances live in memory. User loads folder via input,
-// saves via JSON download. Works everywhere.
+// STORAGE — Supabase cloud database
 // ══════════════════════════════════════════════════════════════
 
-// In-memory store
-let memInstances = {};   // { id: instanceObject }
-let memCSVs = {};        // { "instId::filename": csvText }
+const SUPA_URL = 'https://lpinlvtxgefhzunuzsak.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxwaW5sdnR4Z2VmaHp1bnV6c2FrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3OTU1OTIsImV4cCI6MjA5MzM3MTU5Mn0.JKdk3cbN6uigtuqCgrTtHTtvWAZnBW1wY3ofApDKadk';
+const SUPA_H = {
+  'apikey': SUPA_KEY,
+  'Authorization': 'Bearer ' + SUPA_KEY,
+  'Content-Type': 'application/json'
+};
 
-// ── Helpers ──
-function memSaveInstance(inst){
-  memInstances[inst.id] = inst;
+async function supaGet(table, params){
+  const url = SUPA_URL + '/rest/v1/' + table + (params ? '?' + params : '');
+  const r = await fetch(url, {headers: SUPA_H});
+  if(!r.ok){ const e=await r.json(); throw new Error(e.message || r.status); }
+  return r.json();
 }
-function memLoadInstance(id){
-  return memInstances[id] || null;
-}
-function memLoadAllInstances(){
-  return Object.values(memInstances).sort((a,b)=>(a.id||'').localeCompare(b.id||''));
-}
-function memDeleteInstance(id){
-  delete memInstances[id];
-  Object.keys(memCSVs).forEach(k=>{ if(k.startsWith(id+'::')) delete memCSVs[k]; });
-}
-function memSaveCSV(instId, filename, text){
-  memCSVs[instId+'::'+filename] = text;
-}
-function memLoadCSV(instId, filename){
-  return memCSVs[instId+'::'+filename] || null;
-}
-function memLoadAllCSVsForInstance(instId){
-  const results = [];
-  Object.entries(memCSVs).forEach(([k,text])=>{
-    if(k.startsWith(instId+'::')){
-      results.push({name: k.slice(instId.length+2), text});
-    }
+async function supaUpsert(table, data){
+  const r = await fetch(SUPA_URL + '/rest/v1/' + table, {
+    method: 'POST',
+    headers: Object.assign({}, SUPA_H, {'Prefer': 'resolution=merge-duplicates,return=representation'}),
+    body: JSON.stringify(data)
   });
-  return results;
+  if(!r.ok){ const e=await r.json(); throw new Error(e.message || r.status); }
+  return r.json();
+}
+async function supaDelete(table, filter){
+  const r = await fetch(SUPA_URL + '/rest/v1/' + table + '?' + filter, {method:'DELETE', headers: SUPA_H});
+  if(!r.ok){ const e=await r.json(); throw new Error(e.message || r.status); }
 }
 
-// ── Supabase client ──
-const _SB_URL='https://lpinlvtxgefhzunuzsak.supabase.co';
-const _SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxwaW5sdnR4Z2VmaHp1bnV6c2FrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3OTU1OTIsImV4cCI6MjA5MzM3MTU5Mn0.JKdk3cbN6uigtuqCgrTtHTtvWAZnBW1wY3ofApDKadk';
-const sb=supabase.createClient(_SB_URL,_SB_KEY);
-let sbReady=false;
-
-async function sbCheck(){
-  try{ const{error}=await sb.from('instances').select('id').limit(1); sbReady=!error; }catch(e){ sbReady=false; }
-  const el=document.getElementById('sb-status');
-  if(el)el.textContent=sbReady?'☁ Cloud connected':'⚠ Offline';
-  if(el)el.style.color=sbReady?'var(--accent)':'var(--red)';
-  return sbReady;
-}
-
-// ── Supabase-backed storage (mem cache + cloud) ──
+// ── Instance CRUD ──
 async function fsSaveInstance(inst){
-  memSaveInstance(inst); autoSaveInstance(inst); await writeJsonToFolder(inst);
-  if(!sbReady)return;
-  const{error}=await sb.from('instances').upsert({
-    id:inst.id, name:inst.name||inst.id, description:inst.description||'',
-    tags:inst.tags||[], shapes:inst.shapes||[], data_files:inst.dataFiles||[]
-  },{onConflict:'id'});
-  if(error)console.warn('Supabase instance save:',error.message);
+  const row = {
+    id: inst.id,
+    name: inst.name || '',
+    description: inst.description || '',
+    tags: inst.tags || [],
+    shapes: inst.shapes || [],
+    data_files: inst.dataFiles || [],
+    updated_at: new Date().toISOString()
+  };
+  await supaUpsert('instances', row);
 }
 async function fsLoadInstance(id){
-  const m=memLoadInstance(id); if(m)return m;
-  if(!sbReady)return null;
-  const{data,error}=await sb.from('instances').select('*').eq('id',id).single();
-  if(error||!data)return null;
-  const inst={id:data.id,name:data.name,description:data.description,tags:data.tags||[],shapes:data.shapes||[],dataFiles:data.data_files||[]};
-  memSaveInstance(inst); return inst;
+  const rows = await supaGet('instances', 'id=eq.' + encodeURIComponent(id) + '&limit=1');
+  if(!rows.length) return null;
+  const r = rows[0];
+  return {id:r.id, name:r.name, description:r.description, tags:r.tags||[], shapes:r.shapes||[], dataFiles:r.data_files||[]};
 }
 async function fsLoadAllInstances(){
-  if(sbReady){
-    const{data,error}=await sb.from('instances').select('*').order('name');
-    if(!error&&data){
-      data.forEach(r=>{ if(!memInstances[r.id]) memInstances[r.id]={id:r.id,name:r.name,description:r.description,tags:r.tags||[],shapes:r.shapes||[],dataFiles:r.data_files||[]}; });
-    }
-  }
-  return memLoadAllInstances();
+  const rows = await supaGet('instances', 'order=id.asc');
+  return rows.map(function(r){
+    return {id:r.id, name:r.name, description:r.description, tags:r.tags||[], shapes:r.shapes||[], dataFiles:r.data_files||[]};
+  });
 }
 async function fsDeleteInstance(id){
-  memDeleteInstance(id);
-  if(sbReady) await sb.from('instances').delete().eq('id',id);
+  await supaDelete('csv_files', 'instance_id=eq.' + encodeURIComponent(id));
+  await supaDelete('instances', 'id=eq.' + encodeURIComponent(id));
 }
-async function fsSaveCSV(instId,filename,text){
-  memSaveCSV(instId,filename,text); await writeCsvToFolder(instId,filename,text);
-  if(!sbReady)return;
-  const{error}=await sb.from('csvs').upsert({inst_id:instId,filename,content:text},{onConflict:'inst_id,filename'});
-  if(error)console.warn('Supabase CSV save:',error.message);
+
+// ── CSV CRUD ──
+async function fsSaveCSV(instId, filename, text){
+  await supaDelete('csv_files', 'instance_id=eq.' + encodeURIComponent(instId) + '&filename=eq.' + encodeURIComponent(filename));
+  await supaUpsert('csv_files', {instance_id: instId, filename: filename, content: text});
 }
-async function fsLoadCSV(instId,filename){
-  const m=memLoadCSV(instId,filename); if(m)return m;
-  if(!sbReady)return null;
-  const{data,error}=await sb.from('csvs').select('content').eq('inst_id',instId).eq('filename',filename).single();
-  if(error||!data)return null;
-  memSaveCSV(instId,filename,data.content); return data.content;
+async function fsLoadCSV(instId, filename){
+  const rows = await supaGet('csv_files', 'instance_id=eq.' + encodeURIComponent(instId) + '&filename=eq.' + encodeURIComponent(filename) + '&limit=1');
+  return rows.length ? rows[0].content : null;
 }
 async function fsLoadAllCSVsForInstance(instId){
-  const m=memLoadAllCSVsForInstance(instId); if(m.length)return m;
-  if(!sbReady)return [];
-  const{data,error}=await sb.from('csvs').select('filename,content').eq('inst_id',instId);
-  if(error||!data)return [];
-  data.forEach(r=>memSaveCSV(instId,r.filename,r.content));
-  return data.map(r=>({name:r.filename,text:r.content}));
+  const rows = await supaGet('csv_files', 'instance_id=eq.' + encodeURIComponent(instId) + '&order=filename.asc');
+  return rows.map(function(r){ return {name: r.filename, text: r.content}; });
 }
 
-// ── Auto-save: download JSON whenever instance is saved ──
-function autoSaveInstance(inst){
-  // Store in localStorage as backup so data survives page refresh
+// ── Init — verify Supabase connection ──
+async function initFileSystem(){
   try{
-    const allData = {instances: memInstances, csvs: memCSVs};
-    localStorage.setItem('bdotranimation_data', JSON.stringify(allData));
-  }catch(e){}
-}
-
-function autoLoadFromLocalStorage(){
-  try{
-    const raw = localStorage.getItem('bdotranimation_data');
-    if(!raw) return false;
-    const data = JSON.parse(raw);
-    if(data.instances) memInstances = data.instances;
-    if(data.csvs) memCSVs = data.csvs;
-    return Object.keys(memInstances).length > 0;
-  }catch(e){ return false; }
-}
-
-// ── Export all instances as a bundle JSON ──
-function exportAllInstances(){
-  const bundle = {
-    version: 1,
-    exported: new Date().toISOString(),
-    instances: memInstances,
-    csvs: memCSVs
-  };
-  const blob = new Blob([JSON.stringify(bundle, null, 2)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'bdotranimation_backup.json';
-  a.click();
-}
-
-// ── Import from bundle JSON ──
-function importBundle(text){
-  try{
-    const data = JSON.parse(text);
-    if(data.instances) Object.assign(memInstances, data.instances);
-    if(data.csvs) Object.assign(memCSVs, data.csvs);
-    autoSaveInstance({id:'__sync__'}); // trigger localStorage save
+    await supaGet('instances', 'limit=1');
+    document.getElementById('folder-picker-overlay').classList.add('hidden');
+    const hf = document.getElementById('hdr-folder');
+    if(hf){ hf.textContent = '☁ Cloud connected'; hf.style.color = 'var(--accent)'; }
     return true;
-  }catch(e){ alert('Invalid file: ' + e.message); return false; }
-}
-
-// ── Load a folder using webkitdirectory input ──
-// Reads all .json files as instances and .csv files as data
-async function loadFolderFiles(fileList){
-  let loaded = 0;
-  const csvFiles = [];
-  const jsonFiles = [];
-
-  for(const file of fileList){
-    const path = file.webkitRelativePath || file.name;
-    if(file.name.endsWith('.json') && !path.includes('manifest')){
-      jsonFiles.push(file);
-    } else if(file.name.endsWith('.csv')){
-      csvFiles.push(file);
-    }
+  }catch(e){
+    console.error('Supabase connection failed:', e);
+    const hf = document.getElementById('hdr-folder');
+    if(hf){ hf.textContent = '☁ Connection failed'; hf.style.color = 'var(--red)'; }
+    return false;
   }
-
-  // Load JSON instances first
-  for(const file of jsonFiles){
-    const text = await file.text();
-    try{
-      const inst = JSON.parse(text);
-      // Handle both bundle format and individual instance format
-      if(inst.instances){
-        // Bundle file
-        Object.assign(memInstances, inst.instances);
-        if(inst.csvs) Object.assign(memCSVs, inst.csvs);
-      } else if(inst.id){
-        memInstances[inst.id] = inst;
-      }
-      loaded++;
-    }catch(e){}
-  }
-
-  // Load CSVs - figure out which instance they belong to from path
-  for(const file of csvFiles){
-    const path = file.webkitRelativePath || '';
-    const parts = path.split('/');
-    // Path pattern: rootFolder/instances/instId/data/file.csv
-    // or rootFolder/instId/file.csv
-    let instId = null;
-    const dataIdx = parts.indexOf('data');
-    if(dataIdx > 0) instId = parts[dataIdx-1];
-    else if(parts.length >= 2) instId = parts[parts.length-2];
-
-    if(instId && memInstances[instId]){
-      const text = await file.text();
-      memSaveCSV(instId, file.name, text);
-      loaded++;
-    } else {
-      // Store as orphan - user can link later
-      const text = await file.text();
-      memCSVs['__orphan__::'+file.name] = text;
-    }
-  }
-
-  return loaded;
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -771,13 +590,6 @@ function guessType(vals){
   return'analog';
 }
 const TAG_COLOURS=['#3498db','#2ecc71','#e74c3c','#e91e8c','#9b59b6','#f39c12','#1abc9c','#e67e22'];
-const STRIP_SUFFIXES=['oRawOutput','qInput'];
-function friendlyTagName(h){
-  const parts=h.split('.');
-  if(parts.length>1&&STRIP_SUFFIXES.includes(parts[parts.length-1]))
-    return parts.slice(0,-1).join('.').replace(/_/g,' ').slice(0,20);
-  return parts[parts.length-1].replace(/_/g,' ').slice(0,20);
-}
 
 function detectTagsFromCSV(headers,rows){
   return headers.slice(1).map((h,i)=>{
@@ -789,7 +601,7 @@ function detectTagsFromCSV(headers,rows){
     return{
       col:i+1,           // 1-based column in vals array (index 0 = first data col)
       csvCol:h,          // raw CSV header
-      name:friendlyTagName(h),
+      name:h.split('.').pop().replace(/_/g,' ').slice(0,20), // friendly name
       type,
       stroke:TAG_COLOURS[i%TAG_COLOURS.length],
       range_min:type==='analog'?parseFloat(mn.toFixed(2)):0,
@@ -815,7 +627,10 @@ function switchTab(tab){
   document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active'));
   const btnMap={instances:'vbtn-setup',replay:'vbtn-replay'};
   const ab=document.getElementById(btnMap[tab]);if(ab)ab.classList.add('active');
-  if(tab==='replay'){requestAnimationFrame(()=>requestAnimationFrame(()=>{resizeReplay();draw();}));}
+  // Show/hide replay speed controls in header
+  const rspd=document.getElementById('replay-speed-controls');
+  if(rspd)rspd.style.display=tab==='replay'?'flex':'none';
+  if(tab==='replay'){setTimeout(()=>{resizeReplay();draw();},20);}
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -881,9 +696,10 @@ function populateForm(inst){
   }else{
     document.getElementById('tag-section').style.display='none';
   }
-  // Inst designer — defer until browser has painted the newly-visible form
+  // Inst designer
   DS.shapes=inst.shapes||[];
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{resizeInstCanvas();drawInstDesigner();}));
+  resizeInstCanvas();
+  drawInstDesigner();
   document.getElementById('save-status').textContent='';
 }
 
@@ -911,7 +727,7 @@ function newInstance(){
   if(subname)subname.textContent='New Instance';
   const noMsg=document.getElementById('no-inst-msg');
   if(noMsg)noMsg.style.display='none';
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{resizeInstCanvas();drawInstDesigner();}));
+  setTimeout(()=>{resizeInstCanvas();drawInstDesigner();},30);
 }
 
 // btn-new-inst handled via sb-new-btn onclick above
@@ -921,6 +737,20 @@ document.getElementById('hdr-inst-sel').addEventListener('change',e=>{
   if(e.target.value)openInstance(e.target.value);else newInstance();
 });
 
+document.getElementById('sb-flush-btn').onclick=async()=>{
+  const insts = await fsLoadAllInstances();
+  if(!insts.length){alert('Nothing to delete.');return;}
+  if(!confirm('Delete ALL ' + insts.length + ' instances and their CSV data from the cloud database?')) return;
+  if(!confirm('This cannot be undone. Are you sure?')) return;
+  for(const inst of insts) await fsDeleteInstance(inst.id);
+  activeInstance=null; editingInstance=null; activeTags=[]; DS.shapes=[];
+  document.getElementById('inst-subheader').style.display='none';
+  document.getElementById('no-inst-msg').style.display='flex';
+  document.getElementById('inst-panel').classList.add('hidden');
+  document.getElementById('replay-panel').classList.add('hidden');
+  await loadInstanceList();
+  alert('All instances deleted.');
+};
 
 // ══════════════════════════════════════════════════════════════
 // CSV UPLOAD IN FORM
@@ -1024,28 +854,12 @@ document.getElementById('btn-save-inst').onclick=async()=>{
   for(const f of formCsvFiles){
     await fsSaveCSV(id, f.name, f.text);
   }
-  // Ensure a working folder is selected before saving
-  if(!rootDirHandle){
-    await pickFolder();
-    if(!rootDirHandle){ alert('No folder selected — save cancelled.'); return; }
-  }
-  for(const f of formCsvFiles){ await fsSaveCSV(id, f.name, f.text); }
   await fsSaveInstance(editingInstance);
   activeInstance=editingInstance;
   activeTags=editingInstance.tags||[];
-  const ss=document.getElementById('save-status');
-  ss.textContent='✓ Saved '+(new Date().toLocaleTimeString());
-  ss.style.display='inline';
-  setTimeout(()=>{ss.style.display='none';},3000);
-  const saveBtn=document.getElementById('btn-save-inst');
-  const origText=saveBtn.textContent;
-  saveBtn.textContent='✓ Saved';
-  saveBtn.disabled=true;
-  setTimeout(()=>{saveBtn.textContent=origText;saveBtn.disabled=false;},1500);
+  document.getElementById('save-status').textContent='✓ Saved '+(new Date().toLocaleTimeString());
   document.getElementById('btn-delete-inst').style.display='block';
   document.getElementById('hdr-inst').textContent=editingInstance.name||id;
-  const subname=document.getElementById('subhdr-name');
-  if(subname)subname.textContent=editingInstance.name||id;
   buildSbTagLegend();
   await loadInstanceList();
 };
@@ -1060,7 +874,17 @@ document.getElementById('btn-delete-inst').onclick=async()=>{
   await loadInstanceList();
 };
 
-// Import via hidden file input (still supported programmatically)
+// Export / import instance JSON
+document.getElementById('btn-export-inst').onclick=()=>{
+  if(!editingInstance)return;
+  const exp=JSON.parse(JSON.stringify(editingInstance));
+  const blob=new Blob([JSON.stringify(exp,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${exp.id||'instance'}.json`;a.click();
+};
+// Import button - add a proper import button to the title bar area
+// Trigger via export button area - wire inst-import-input directly  
+const _importBtn=document.getElementById('btn-import-inst');
+if(_importBtn)_importBtn.onclick=()=>document.getElementById('inst-import-input').click();
 document.getElementById('inst-import-input').addEventListener('change',e=>{
   const f=e.target.files[0];if(!f)return;
   const r=new FileReader();r.onload=ev=>{
@@ -1113,9 +937,8 @@ const replayEntries={};
 
 async function loadInstanceIntoReplay(inst){
   const fileList=document.getElementById('sb-file-list');fileList.innerHTML='';
-  const fileSection=document.getElementById('sb-file-section');if(fileSection)fileSection.style.display='none';
   const sel=document.getElementById('replay-file-sel');
-  if(sel)sel.innerHTML='<option value="">— select file —</option>';
+  sel.innerHTML='<option value="">— select file —</option>';
   Object.keys(replayEntries).forEach(k=>delete replayEntries[k]); // clear
   RS.rows=[];RS.currentIdx=0;RS.speed=0;RS.ovL=0;RS.ovR=1;
   activeTags=inst.tags||[];
@@ -1166,13 +989,13 @@ function addReplayEntry(name, rows){
   replayEntries[name]=entry;
   const fileList=document.getElementById('sb-file-list');
   const sel=document.getElementById('replay-file-sel');
-  const sb=document.createElement('div');sb.className='file-item';sb.textContent=name.replace('.csv','');
+  const sb=document.createElement('div');sb.className='inst-item';sb.textContent=name.replace('.csv','');
   sb.onclick=()=>activateReplayFile(entry);
+  // Insert before any notice div
   const notice=fileList.querySelector('div[style]');
   if(notice)fileList.insertBefore(sb,notice);else fileList.appendChild(sb);
   const opt=document.createElement('option');opt.value=name;opt.textContent=name.replace('.csv','');
-  if(sel)sel.appendChild(opt);
-  document.getElementById('sb-file-section').style.display='block';
+  sel.appendChild(opt);
 }
 
 document.getElementById('replay-file-sel').addEventListener('change',e=>{
@@ -1185,7 +1008,7 @@ function activateReplayFile(entry){
   document.getElementById('no-data').classList.add('hidden');
   document.getElementById('hdr-file').textContent=entry.name.replace('.csv','');
   if(RS.rows.length)document.getElementById('hdr-range').textContent=`${fmtTime(RS.rows[0].time)} → ${fmtTime(RS.rows[RS.rows.length-1].time)}`;
-  document.querySelectorAll('#sb-file-list .file-item').forEach(el=>el.classList.toggle('active',el.textContent===entry.name.replace('.csv','')));
+  document.querySelectorAll('#sb-file-list .sbi').forEach(el=>el.classList.toggle('active',el.textContent===entry.name.replace('.csv','')));
   setSpeed(0);resizeReplay();
 }
 
@@ -1680,75 +1503,27 @@ function tick(ts){
 window.addEventListener('resize',()=>{resizeReplay();resizeInstCanvas();draw();});
 
 // ══════════════════════════════════════════════════════════════
-// FOLDER PICKER + STARTUP
+// STARTUP — Supabase replaces file system
 // ══════════════════════════════════════════════════════════════
-async function initFileSystem(){
-  // Try to restore saved folder handle
-  const saved = await getHandleFromIDB();
-  if(saved){
-    try{
-      // Verify we still have permission
-      const perm = await saved.queryPermission({mode:'readwrite'});
-      if(perm === 'granted'){
-        await mountFolder(saved);
-        return true;
-      }
-      // Permission lapsed — request again
-      const req = await saved.requestPermission({mode:'readwrite'});
-      if(req === 'granted'){
-        await mountFolder(saved);
-        return true;
-      }
-    }catch(e){}
-  }
-  return false; // need to show picker
-}
 
-async function mountFolder(handle){
-  rootDirHandle = handle;
-  // Ensure the instances subfolder exists
-  await getOrCreateDir(rootDirHandle, 'instances');
-  document.getElementById('folder-picker-overlay').classList.add('hidden');
-  document.getElementById('fp-current-path').textContent = '📁 ' + handle.name;
-  document.getElementById('fp-current-path').style.display = 'block';
-  document.getElementById('btn-change-folder').style.display = 'inline-block';
-  const hdrFolder=document.getElementById('hdr-folder');
-  if(hdrFolder)hdrFolder.textContent='📁 '+handle.name;
+// Supabase replaces folder picker — retry button reconnects
+const _pbf = document.getElementById('btn-pick-folder');
+if(_pbf) _pbf.addEventListener('click', async function(){
+  await initFileSystem();
   await loadInstanceList();
-}
-
-async function pickFolder(){
-  // showDirectoryPicker requires https:// or localhost — blocked on file://
-  if(location.protocol === 'file:'){
-    alert('The folder picker requires Chrome to serve this file over a local server.\n\nQuickest fix:\n1. Open a terminal in your BdRanimation folder\n2. Run: npx serve .\n3. Open http://localhost:3000 in Chrome\n\nOr install the "Live Server" VS Code extension and click "Go Live".');
-    return;
-  }
-  if(!window.showDirectoryPicker){
-    alert('Your browser does not support the File System Access API. Please use Chrome or Edge.');
-    return;
-  }
-  try{
-    const handle = await window.showDirectoryPicker({mode:'readwrite', id:'bdotranimation'});
-    await saveHandleToIDB(handle);
-    await mountFolder(handle);
-  }catch(e){
-    if(e.name !== 'AbortError') alert('Could not open folder: ' + e.message);
-  }
-}
-
-document.getElementById('btn-pick-folder').addEventListener('click', pickFolder);
-document.getElementById('btn-change-folder').addEventListener('click', pickFolder);
+});
 
 async function init(){
-  // Restore local cache first so UI is instant
-  autoLoadFromLocalStorage();
-  // Connect to Supabase and sync
-  await sbCheck();
-  await loadInstanceList();
-  // File system folder (optional — for direct disk writes)
-  initFileSystem().catch(()=>{});
-  // Hide folder picker overlay — Supabase is the primary store
-  document.getElementById('folder-picker-overlay').classList.add('hidden');
+  // Check if running on file:// - show warning
+  if(location.protocol === 'file:'){
+    const warn=document.getElementById('file-protocol-warning');
+    if(warn)warn.style.display='block';
+  }
+  const restored = await initFileSystem();
+  if(!restored){
+    // Show the folder picker overlay
+    document.getElementById('folder-picker-overlay').classList.remove('hidden');
+  }
   setTimeout(()=>{
     resizeInstCanvas();
     requestAnimationFrame(tick);

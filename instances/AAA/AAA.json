@@ -1,0 +1,83 @@
+{
+  "id": "AAA",
+  "name": "AAA",
+  "description": "AAA",
+  "tags": [
+    {
+      "col": 1,
+      "csvCol": "SL1_CVC1_DVH3_MT040.iRunningF",
+      "name": "iRunningF",
+      "type": "digital",
+      "stroke": "#3498db",
+      "range_min": 0,
+      "range_max": 1,
+      "units": ""
+    },
+    {
+      "col": 2,
+      "csvCol": "SL1_SOL_010.oRawOutput",
+      "name": "SL1 SOL 010",
+      "type": "digital",
+      "stroke": "#2ecc71",
+      "range_min": 0,
+      "range_max": 1,
+      "units": ""
+    },
+    {
+      "col": 3,
+      "csvCol": "SL1_SOL_011.oRawOutput",
+      "name": "SL1 SOL 011",
+      "type": "digital",
+      "stroke": "#e74c3c",
+      "range_min": 0,
+      "range_max": 1,
+      "units": ""
+    },
+    {
+      "col": 4,
+      "csvCol": "SL1_CVC1_DVH3.qRestraintEngaged",
+      "name": "qRestraintEngaged",
+      "type": "digital",
+      "stroke": "#e91e8c",
+      "range_min": 0,
+      "range_max": 1,
+      "units": ""
+    },
+    {
+      "col": 5,
+      "csvCol": "SL1_PIT_005.qInput",
+      "name": "SL1 PIT 005",
+      "type": "analog",
+      "stroke": "#9b59b6",
+      "range_min": 6.02,
+      "range_max": 178.04,
+      "units": ""
+    },
+    {
+      "col": 6,
+      "csvCol": "SL1_PIT_006.qInput",
+      "name": "SL1 PIT 006",
+      "type": "analog",
+      "stroke": "#f39c12",
+      "range_min": 0,
+      "range_max": 111.8,
+      "units": ""
+    },
+    {
+      "col": 7,
+      "csvCol": "SL1_PIT_007.qInput",
+      "name": "SL1 PIT 007",
+      "type": "analog",
+      "stroke": "#1abc9c",
+      "range_min": 0.71,
+      "range_max": 148.12,
+      "units": ""
+    }
+  ],
+  "dataFiles": [
+    {
+      "name": "SL1_TC_260112_0857.csv"
+    }
+  ],
+  "shapes": []
+}
