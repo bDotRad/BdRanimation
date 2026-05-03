@@ -205,7 +205,7 @@ canvas{display:block;}
 <header id="header">
   <div style="display:flex;flex-direction:column;">
     <div id="logo-name">BdotRanimation</div>
-    <div id="logo-ver">Data Replay Engine v260503.2125</div>
+    <div id="logo-ver">Data Replay Engine v260503.2135</div>
   </div>
   <div class="hsep"></div>
   <span id="sb-status" style="font-size:9px;color:var(--text3);letter-spacing:.06em;">⏳ Connecting…</span>
@@ -1740,15 +1740,10 @@ document.getElementById('btn-pick-folder').addEventListener('click', pickFolder)
 document.getElementById('btn-change-folder').addEventListener('click', pickFolder);
 
 async function init(){
-  // Restore local cache first so UI is instant
   autoLoadFromLocalStorage();
-  // Connect to Supabase and sync
+  document.getElementById('folder-picker-overlay').classList.add('hidden');
   await sbCheck();
   await loadInstanceList();
-  // File system folder (optional — for direct disk writes)
-  initFileSystem().catch(()=>{});
-  // Hide folder picker overlay — Supabase is the primary store
-  document.getElementById('folder-picker-overlay').classList.add('hidden');
   setTimeout(()=>{
     resizeInstCanvas();
     requestAnimationFrame(tick);
