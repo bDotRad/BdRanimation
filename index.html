@@ -467,15 +467,26 @@ async function writeJsonToFolder(inst){
   try{
     const instancesDir = await getOrCreateDir(rootDirHandle, 'instances');
     const instDir = await getOrCreateDir(instancesDir, inst.id);
-    const fileHandle = await instDir.getFileHandle(`${inst.id}.json`, {create:true});
-    const writable = await fileHandle.createWritable();
-    await writable.write(JSON.stringify(inst, null, 2));
-    await writable.close();
+    const fh = await instDir.getFileHandle(`${inst.id}.json`, {create:true});
+    const w = await fh.createWritable();
+    await w.write(JSON.stringify(inst, null, 2));
+    await w.close();
     return true;
-  }catch(e){
-    console.warn('File system write failed:', e);
-    return false;
-  }
+  }catch(e){ console.warn('JSON write failed:', e); return false; }
+}
+
+async function writeCsvToFolder(instId, filename, text){
+  if(!rootDirHandle) return false;
+  try{
+    const instancesDir = await getOrCreateDir(rootDirHandle, 'instances');
+    const instDir = await getOrCreateDir(instancesDir, instId);
+    const dataDir = await getOrCreateDir(instDir, 'data');
+    const fh = await dataDir.getFileHandle(filename, {create:true});
+    const w = await fh.createWritable();
+    await w.write(text);
+    await w.close();
+    return true;
+  }catch(e){ console.warn('CSV write failed:', e); return false; }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -519,11 +530,11 @@ function memLoadAllCSVsForInstance(instId){
 }
 
 // ── Map old fs* names to mem* so rest of code works unchanged ──
-async function fsSaveInstance(inst){ memSaveInstance(inst); autoSaveInstance(inst); }
+async function fsSaveInstance(inst){ memSaveInstance(inst); autoSaveInstance(inst); await writeJsonToFolder(inst); }
 async function fsLoadInstance(id){ return memLoadInstance(id); }
 async function fsLoadAllInstances(){ return memLoadAllInstances(); }
 async function fsDeleteInstance(id){ memDeleteInstance(id); }
-async function fsSaveCSV(instId, filename, text){ memSaveCSV(instId, filename, text); }
+async function fsSaveCSV(instId, filename, text){ memSaveCSV(instId, filename, text); await writeCsvToFolder(instId, filename, text); }
 async function fsLoadCSV(instId, filename){ return memLoadCSV(instId, filename); }
 async function fsLoadAllCSVsForInstance(instId){ return memLoadAllCSVsForInstance(instId); }
 
@@ -954,6 +965,12 @@ document.getElementById('btn-save-inst').onclick=async()=>{
   for(const f of formCsvFiles){
     await fsSaveCSV(id, f.name, f.text);
   }
+  // Ensure a working folder is selected before saving
+  if(!rootDirHandle){
+    await pickFolder();
+    if(!rootDirHandle){ alert('No folder selected — save cancelled.'); return; }
+  }
+  for(const f of formCsvFiles){ await fsSaveCSV(id, f.name, f.text); }
   await fsSaveInstance(editingInstance);
   activeInstance=editingInstance;
   activeTags=editingInstance.tags||[];
@@ -970,12 +987,6 @@ document.getElementById('btn-save-inst').onclick=async()=>{
   document.getElementById('hdr-inst').textContent=editingInstance.name||id;
   const subname=document.getElementById('subhdr-name');
   if(subname)subname.textContent=editingInstance.name||id;
-  // Save JSON to instances/<id>/<id>.json if folder is open, else download
-  const savedToFs = await writeJsonToFolder(editingInstance);
-  if(!savedToFs){
-    const blob=new Blob([JSON.stringify(editingInstance,null,2)],{type:'application/json'});
-    const dl=document.createElement('a');dl.href=URL.createObjectURL(blob);dl.download=`${id}.json`;dl.click();URL.revokeObjectURL(dl.href);
-  }
   buildSbTagLegend();
   await loadInstanceList();
 };
