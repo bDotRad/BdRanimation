@@ -179,17 +179,6 @@ td input[type=number]{background:var(--bg4);border:1px solid transparent;color:v
 .xbtn:hover{border-color:var(--accent);color:var(--accent);}
 #design-canvas-wrap{flex:1;position:relative;overflow:hidden;}
 
-/* Folder picker overlay */
-#folder-picker-overlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:200;}
-#folder-picker-overlay.hidden{display:none;}
-#folder-picker-box{background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:40px 48px;text-align:center;max-width:480px;display:flex;flex-direction:column;align-items:center;gap:16px;}
-.fp-icon{font-size:48px;opacity:.6;}
-#folder-picker-box h2{font-size:16px;font-weight:700;color:var(--accent);letter-spacing:.06em;}
-#folder-picker-box p{font-size:11px;color:var(--text2);line-height:1.6;}
-#btn-pick-folder{background:var(--accent);border:none;color:#1a1d21;font-family:inherit;font-size:12px;font-weight:700;padding:10px 28px;border-radius:4px;cursor:pointer;letter-spacing:.04em;}
-#btn-pick-folder:hover{background:#e8b830;}
-#fp-current-path{display:none;font-size:10px;color:var(--accent);background:var(--bg3);border:1px solid var(--border);border-radius:3px;padding:6px 12px;}
-#btn-change-folder{display:none;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);font-family:inherit;font-size:10px;padding:5px 14px;border-radius:3px;cursor:pointer;}
 
 /* Compat hidden elements */
 #no-data,#hdr-inst,#hdr-inst-info,#hdr-replay-info,#save-status,#hdr-inst-sel,#hdr-new-inst,#sb-tag-legend,#sb-folder-name,#btn-open-relay{display:none;}
@@ -205,7 +194,7 @@ canvas{display:block;}
 <header id="header">
   <div style="display:flex;flex-direction:column;">
     <div id="logo-name">BdotRanimation</div>
-    <div id="logo-ver">Data Replay Engine v260503.2135</div>
+    <div id="logo-ver">Data Replay Engine v260503.2143</div>
   </div>
   <div class="hsep"></div>
   <span id="sb-status" style="font-size:9px;color:var(--text3);letter-spacing:.06em;">⏳ Connecting…</span>
@@ -398,98 +387,11 @@ canvas{display:block;}
     </div><!-- end right-panel -->
 </div><!-- end body -->
 
-<!-- Folder picker overlay -->
-<div id="folder-picker-overlay" class="hidden">
-  <div id="folder-picker-box">
-    <div class="fp-icon">📁</div>
-    <h2>Select Working Folder</h2>
-    <p>BdotRanimation reads and writes real files in your chosen folder.<br>Select your <strong>BdRanimation</strong> folder to get started.</p>
-
-    <div id="fp-current-path"></div>
-    <button id="btn-pick-folder">📂 Choose Folder</button>
-    <div id="file-protocol-warning" style="display:none;background:rgba(226,75,74,.1);border:1px solid rgba(226,75,74,.3);border-radius:4px;padding:14px 18px;font-size:11px;color:#e24b4a;line-height:1.8;text-align:left;max-width:380px;">
-      ⚠ <strong>Running from file:// — folder picker is blocked by Chrome</strong><br><br>
-      You need to serve this file over HTTP. The easiest way:<br><br>
-      1. Open <strong>Command Prompt</strong> in your BdRanimation folder<br>
-      &nbsp;&nbsp;&nbsp;<em>(Shift+right-click the folder → Open in Terminal)</em><br>
-      2. Run this command:<br>
-      <code id="serve-cmd" style="display:block;background:rgba(0,0,0,.4);padding:6px 10px;border-radius:3px;margin:6px 0;color:#e2e8f0;font-family:Consolas,monospace;cursor:pointer;" onclick="navigator.clipboard.writeText(&#39;npx serve .&#39;).then(()=&gt;{this.textContent=&#39;✓ Copied!&#39;;setTimeout(()=&gt;this.textContent=&#39;npx serve .&#39;,1500)})">npx serve .</code>
-      3. Open <strong style="color:#f0c040;cursor:pointer;" onclick="window.open(&#39;http://localhost:3000&#39;)">http://localhost:3000</strong> in this Chrome window
-    </div>
-    <button id="btn-change-folder">Change Folder</button>
-    <p style="font-size:9px;color:var(--text3);margin-top:-8px;">Chrome will ask to confirm folder access — click Allow</p>
-  </div>
-</div>
 
 
 <script>
 'use strict';
 
-// ══════════════════════════════════════════════════════════════
-// FILE SYSTEM — File System Access API (replaces IndexedDB)
-// Root folder handle stored in a tiny IDB just for the handle.
-// All data lives as real files in the chosen folder.
-// ══════════════════════════════════════════════════════════════
-let rootDirHandle = null;   // root: .../BdRanimation/
-
-// ── IndexedDB helpers for persisting the folder handle across page loads ──
-function _openHandleDB(){
-  return new Promise((res,rej)=>{
-    const r=indexedDB.open('bdotranimation_handles',1);
-    r.onupgradeneeded=e=>e.target.result.createObjectStore('handles');
-    r.onsuccess=e=>res(e.target.result);
-    r.onerror=e=>rej(e.target.error);
-  });
-}
-async function saveHandleToIDB(handle){
-  const db=await _openHandleDB();
-  return new Promise((res,rej)=>{
-    const tx=db.transaction('handles','readwrite');
-    tx.objectStore('handles').put(handle,'root');
-    tx.oncomplete=()=>res();
-    tx.onerror=e=>rej(e.target.error);
-  });
-}
-async function getHandleFromIDB(){
-  const db=await _openHandleDB();
-  return new Promise((res,rej)=>{
-    const tx=db.transaction('handles','readonly');
-    const req=tx.objectStore('handles').get('root');
-    req.onsuccess=e=>res(e.target.result||null);
-    req.onerror=e=>rej(e.target.error);
-  });
-}
-
-async function getOrCreateDir(dirHandle, name){
-  return await dirHandle.getDirectoryHandle(name, {create:true});
-}
-
-async function writeJsonToFolder(inst){
-  if(!rootDirHandle) return false;
-  try{
-    const instancesDir = await getOrCreateDir(rootDirHandle, 'instances');
-    const instDir = await getOrCreateDir(instancesDir, inst.id);
-    const fh = await instDir.getFileHandle(`${inst.id}.json`, {create:true});
-    const w = await fh.createWritable();
-    await w.write(JSON.stringify(inst, null, 2));
-    await w.close();
-    return true;
-  }catch(e){ console.warn('JSON write failed:', e); return false; }
-}
-
-async function writeCsvToFolder(instId, filename, text){
-  if(!rootDirHandle) return false;
-  try{
-    const instancesDir = await getOrCreateDir(rootDirHandle, 'instances');
-    const instDir = await getOrCreateDir(instancesDir, instId);
-    const dataDir = await getOrCreateDir(instDir, 'data');
-    const fh = await dataDir.getFileHandle(filename, {create:true});
-    const w = await fh.createWritable();
-    await w.write(text);
-    await w.close();
-    return true;
-  }catch(e){ console.warn('CSV write failed:', e); return false; }
-}
 
 // ══════════════════════════════════════════════════════════════
 // STORAGE — file-input based, works on file:// with no server
@@ -547,7 +449,7 @@ async function sbCheck(){
 
 // ── Supabase-backed storage (mem cache + cloud) ──
 async function fsSaveInstance(inst){
-  memSaveInstance(inst); autoSaveInstance(inst); await writeJsonToFolder(inst);
+  memSaveInstance(inst);
   if(!sbReady)return;
   const{error}=await sb.from('instances').upsert({
     id:inst.id, name:inst.name||inst.id, description:inst.description||'',
@@ -577,7 +479,7 @@ async function fsDeleteInstance(id){
   if(sbReady) await sb.from('instances').delete().eq('id',id);
 }
 async function fsSaveCSV(instId,filename,text){
-  memSaveCSV(instId,filename,text); await writeCsvToFolder(instId,filename,text);
+  memSaveCSV(instId,filename,text);
   if(!sbReady)return;
   const{error}=await sb.from('csvs').upsert({inst_id:instId,filename,content:text},{onConflict:'inst_id,filename'});
   if(error)console.warn('Supabase CSV save:',error.message);
@@ -598,25 +500,6 @@ async function fsLoadAllCSVsForInstance(instId){
   return data.map(r=>({name:r.filename,text:r.content}));
 }
 
-// ── Auto-save: download JSON whenever instance is saved ──
-function autoSaveInstance(inst){
-  // Store in localStorage as backup so data survives page refresh
-  try{
-    const allData = {instances: memInstances, csvs: memCSVs};
-    localStorage.setItem('bdotranimation_data', JSON.stringify(allData));
-  }catch(e){}
-}
-
-function autoLoadFromLocalStorage(){
-  try{
-    const raw = localStorage.getItem('bdotranimation_data');
-    if(!raw) return false;
-    const data = JSON.parse(raw);
-    if(data.instances) memInstances = data.instances;
-    if(data.csvs) memCSVs = data.csvs;
-    return Object.keys(memInstances).length > 0;
-  }catch(e){ return false; }
-}
 
 // ── Export all instances as a bundle JSON ──
 function exportAllInstances(){
@@ -639,7 +522,6 @@ function importBundle(text){
     const data = JSON.parse(text);
     if(data.instances) Object.assign(memInstances, data.instances);
     if(data.csvs) Object.assign(memCSVs, data.csvs);
-    autoSaveInstance({id:'__sync__'}); // trigger localStorage save
     return true;
   }catch(e){ alert('Invalid file: ' + e.message); return false; }
 }
@@ -1020,15 +902,6 @@ document.getElementById('btn-save-inst').onclick=async()=>{
   editingInstance.name=document.getElementById('f-name').value.trim()||id;
   editingInstance.description=document.getElementById('f-desc').value.trim();
   editingInstance.shapes=DS.shapes;
-  // Save CSV data to DB
-  for(const f of formCsvFiles){
-    await fsSaveCSV(id, f.name, f.text);
-  }
-  // Ensure a working folder is selected before saving
-  if(!rootDirHandle){
-    await pickFolder();
-    if(!rootDirHandle){ alert('No folder selected — save cancelled.'); return; }
-  }
   for(const f of formCsvFiles){ await fsSaveCSV(id, f.name, f.text); }
   await fsSaveInstance(editingInstance);
   activeInstance=editingInstance;
@@ -1680,68 +1553,11 @@ function tick(ts){
 window.addEventListener('resize',()=>{resizeReplay();resizeInstCanvas();draw();});
 
 // ══════════════════════════════════════════════════════════════
-// FOLDER PICKER + STARTUP
 // ══════════════════════════════════════════════════════════════
-async function initFileSystem(){
-  // Try to restore saved folder handle
-  const saved = await getHandleFromIDB();
-  if(saved){
-    try{
-      // Verify we still have permission
-      const perm = await saved.queryPermission({mode:'readwrite'});
-      if(perm === 'granted'){
-        await mountFolder(saved);
-        return true;
-      }
-      // Permission lapsed — request again
-      const req = await saved.requestPermission({mode:'readwrite'});
-      if(req === 'granted'){
-        await mountFolder(saved);
-        return true;
-      }
-    }catch(e){}
-  }
-  return false; // need to show picker
-}
-
-async function mountFolder(handle){
-  rootDirHandle = handle;
-  // Ensure the instances subfolder exists
-  await getOrCreateDir(rootDirHandle, 'instances');
-  document.getElementById('folder-picker-overlay').classList.add('hidden');
-  document.getElementById('fp-current-path').textContent = '📁 ' + handle.name;
-  document.getElementById('fp-current-path').style.display = 'block';
-  document.getElementById('btn-change-folder').style.display = 'inline-block';
-  const hdrFolder=document.getElementById('hdr-folder');
-  if(hdrFolder)hdrFolder.textContent='📁 '+handle.name;
-  await loadInstanceList();
-}
-
-async function pickFolder(){
-  // showDirectoryPicker requires https:// or localhost — blocked on file://
-  if(location.protocol === 'file:'){
-    alert('The folder picker requires Chrome to serve this file over a local server.\n\nQuickest fix:\n1. Open a terminal in your BdRanimation folder\n2. Run: npx serve .\n3. Open http://localhost:3000 in Chrome\n\nOr install the "Live Server" VS Code extension and click "Go Live".');
-    return;
-  }
-  if(!window.showDirectoryPicker){
-    alert('Your browser does not support the File System Access API. Please use Chrome or Edge.');
-    return;
-  }
-  try{
-    const handle = await window.showDirectoryPicker({mode:'readwrite', id:'bdotranimation'});
-    await saveHandleToIDB(handle);
-    await mountFolder(handle);
-  }catch(e){
-    if(e.name !== 'AbortError') alert('Could not open folder: ' + e.message);
-  }
-}
-
-document.getElementById('btn-pick-folder').addEventListener('click', pickFolder);
-document.getElementById('btn-change-folder').addEventListener('click', pickFolder);
+// STARTUP
+// ══════════════════════════════════════════════════════════════
 
 async function init(){
-  autoLoadFromLocalStorage();
-  document.getElementById('folder-picker-overlay').classList.add('hidden');
   await sbCheck();
   await loadInstanceList();
   setTimeout(()=>{
