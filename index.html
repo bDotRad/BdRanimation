@@ -23,15 +23,14 @@ body{font-family:'Consolas','JetBrains Mono',monospace;background:var(--bg);colo
 .hl{font-size:9px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;}
 .hv{font-size:11px;color:var(--text);}
 #hdr-spacer{flex:1;}
-#hdr-folder{font-size:9px;color:var(--text3);padding:4px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:3px;cursor:pointer;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis;}
-#hdr-folder:hover{border-color:var(--border2);color:var(--text2);}
 /* Replay speed controls */
 .spd{background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-family:inherit;font-size:10px;padding:3px 7px;cursor:pointer;border-radius:3px;transition:all .1s;}
 .spd:hover{border-color:var(--border2);color:var(--text);}
 .spd.active{background:var(--accent2);border-color:var(--accent);color:var(--accent);}
 #cur-time{font-size:14px;color:var(--accent);font-weight:700;letter-spacing:.04em;}
-#replay-file-sel{background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:10px;padding:3px 6px;border-radius:3px;}
 #hdr-range{font-size:11px;color:var(--text);}
+#replay-controls-bar{display:flex;align-items:center;gap:4px;padding:6px 0;flex-shrink:0;flex-wrap:wrap;}
+#replay-file-sel{display:none;}
 
 /* ── BODY: list + right ── */
 #body{display:flex;overflow:hidden;min-height:0;}
@@ -49,9 +48,11 @@ body{font-family:'Consolas','JetBrains Mono',monospace;background:var(--bg);colo
 .ii-name{font-size:11px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ii-desc{font-size:9px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ii-meta{font-size:9px;color:var(--text3);margin-top:2px;}
-#list-bottom{padding:8px 10px;border-top:1px solid var(--border);flex-shrink:0;}
-#sb-flush-btn{width:100%;background:none;border:1px solid rgba(226,75,74,.2);color:rgba(226,75,74,.5);font-family:inherit;font-size:9px;padding:4px;border-radius:3px;cursor:pointer;letter-spacing:.06em;}
-#sb-flush-btn:hover{border-color:var(--red);color:var(--red);}
+#sb-file-section{border-top:1px solid var(--border);flex-shrink:0;}
+#sb-file-section-title{padding:6px 12px 3px;font-size:9px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;}
+.file-item{padding:5px 12px 5px 20px;cursor:pointer;font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .1s;}
+.file-item:hover{background:var(--bg3);}
+.file-item.active{color:var(--accent);}
 
 /* ── RIGHT PANEL ── */
 #right-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;}
@@ -190,7 +191,8 @@ td input[type=number]{background:var(--bg4);border:1px solid transparent;color:v
 #btn-change-folder{display:none;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);font-family:inherit;font-size:10px;padding:5px 14px;border-radius:3px;cursor:pointer;}
 
 /* Compat hidden elements */
-#no-data,#hdr-inst,#hdr-inst-info,#hdr-replay-info,#save-status,#hdr-inst-sel,#hdr-new-inst,#sb-file-list,#sb-tag-legend,#sb-folder-name,#btn-open-relay{display:none;}
+#no-data,#hdr-inst,#hdr-inst-info,#hdr-replay-info,#save-status,#hdr-inst-sel,#hdr-new-inst,#sb-tag-legend,#sb-folder-name,#btn-open-relay{display:none;}
+#sb-file-section{display:none;}
 #hdr-file,#hdr-tag-count,#hdr-shape-count,#hdr-data-count,#hdr-file{display:none;}
 
 canvas{display:block;}
@@ -206,32 +208,6 @@ canvas{display:block;}
   </div>
   <div class="hsep"></div>
 
-  <!-- Replay speed controls — always rendered, shown/hidden via JS -->
-  <div id="replay-speed-controls" style="display:none;align-items:center;gap:4px;">
-    <span style="font-size:9px;color:var(--text3);letter-spacing:.08em;margin-right:2px;">SPEED</span>
-    <button class="spd" data-speed="-10">−10x</button>
-    <button class="spd" data-speed="-5">−5x</button>
-    <button class="spd" data-speed="-2">−2x</button>
-    <button class="spd" data-speed="-1">−1x</button>
-    <button class="spd active" data-speed="0">⏸</button>
-    <button class="spd" data-speed="1">1x</button>
-    <button class="spd" data-speed="2">2x</button>
-    <button class="spd" data-speed="5">5x</button>
-    <button class="spd" data-speed="10">10x</button>
-    <div class="hsep"></div>
-    <select id="replay-file-sel"><option value="">— select file —</option></select>
-    <div class="hsep"></div>
-    <div class="hb">
-      <div class="hl">Range</div>
-      <div id="hdr-range" class="hv">—</div>
-    </div>
-    <div class="hsep"></div>
-    <div id="cur-time">—</div>
-  </div>
-
-  <div id="hdr-spacer"></div>
-  <div id="hdr-folder" onclick="document.getElementById(&#39;btn-pick-folder&#39;).click()" title="Click to change folder">📁 No folder selected</div>
-
   <!-- Hidden compat elements JS references -->
   <span id="hdr-inst" style="display:none"></span>
   <span id="hdr-inst-sel" style="display:none"></span>
@@ -245,8 +221,8 @@ canvas{display:block;}
   <span id="save-status" style="display:none"></span>
   <span id="no-data" style="display:none"></span>
   <span id="sb-folder-name" style="display:none"></span>
-  <span id="sb-file-list" style="display:none"></span>
   <span id="sb-tag-legend" style="display:none"></span>
+  <select id="replay-file-sel" style="display:none"><option value="">— select file —</option></select>
 </header>
 
 <!-- ═══ BODY ═══ -->
@@ -259,8 +235,9 @@ canvas{display:block;}
       <button id="sb-new-btn" onclick="newInstance()">+ New</button><span id="btn-new-inst" style="display:none"></span>
     </div>
     <div id="sb-inst-list"></div>
-    <div id="list-bottom">
-      <button id="sb-flush-btn">⚠ Flush All Instances</button>
+    <div id="sb-file-section">
+      <div id="sb-file-section-title">Data Files</div>
+      <div id="sb-file-list"></div>
     </div>
   </div>
 
@@ -282,14 +259,21 @@ canvas{display:block;}
 
     <!-- SETUP (inst-panel) -->
     <div class="panel" id="inst-panel">
-      <!-- Empty sub-state (no instance yet) -->
-      <div id="inst-empty" style="flex: 1 1 0%; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--text3); font-size: 11px;">
-        <div style="font-size:28px;opacity:.3;">🗂</div>
-        <div>Create a new instance with + New</div>
+      <!-- Splash / empty state (shown until an instance is opened or created) -->
+      <div id="inst-empty" style="flex: 1 1 0%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; color: var(--text3);">
+        <img src="logo.png" alt="BdotRanimation" style="width:180px;height:180px;object-fit:contain;opacity:.85;border-radius:50%;">
+        <div style="text-align:center;line-height:1.7;">
+          <div style="font-size:15px;font-weight:700;color:var(--text2);letter-spacing:.04em;">BdotRanimation</div>
+          <div style="font-size:11px;margin-top:4px;">Select an existing instance from the list,</div>
+          <div style="font-size:11px;">or create a new one to get started.</div>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button class="btn-primary" onclick="newInstance()" style="font-size:12px;padding:8px 20px;">＋ New Instance</button>
+        </div>
       </div>
 
       <!-- Instance form -->
-      <div id="inst-form" style="display: flex; flex: 1 1 0%; flex-direction: column; overflow: hidden; min-height: 0px;">
+      <div id="inst-form" style="display: none; flex: 1 1 0%; flex-direction: column; overflow: hidden; min-height: 0px;">
         <!-- Left: metadata + tags -->
         <div id="setup-left">
 
@@ -297,8 +281,6 @@ canvas{display:block;}
             <span>Instance Details</span>
             <div style="display:flex;gap:4px;">
               <button class="btn-primary" id="btn-save-inst">💾 Save</button>
-              <button class="btn-secondary" id="btn-export-inst">⬇ Export</button>
-              <button class="btn-secondary" id="btn-import-inst">⬆ Import</button>
               <button class="btn-danger" id="btn-delete-inst" style="display:none;">✕ Delete</button>
             </div>
           </div>
@@ -376,6 +358,25 @@ canvas{display:block;}
     <!-- REPLAY (replay-panel) -->
     <div class="panel hidden" id="replay-panel">
       <div id="replay-inner">
+        <div id="replay-controls-bar">
+          <span style="font-size:9px;color:var(--text3);letter-spacing:.08em;margin-right:2px;">SPEED</span>
+          <button class="spd" data-speed="-10">−10x</button>
+          <button class="spd" data-speed="-5">−5x</button>
+          <button class="spd" data-speed="-2">−2x</button>
+          <button class="spd" data-speed="-1">−1x</button>
+          <button class="spd active" data-speed="0">⏸</button>
+          <button class="spd" data-speed="1">1x</button>
+          <button class="spd" data-speed="2">2x</button>
+          <button class="spd" data-speed="5">5x</button>
+          <button class="spd" data-speed="10">10x</button>
+          <div class="hsep"></div>
+          <div class="hb">
+            <div class="hl">Range</div>
+            <div id="hdr-range" class="hv">—</div>
+          </div>
+          <div class="hsep"></div>
+          <div id="cur-time">—</div>
+        </div>
         <div class="chart-wrap" id="ov-wrap">
           <div class="chart-title">Overview</div>
           <canvas id="ov-canvas"></canvas>
@@ -428,6 +429,54 @@ canvas{display:block;}
 // All data lives as real files in the chosen folder.
 // ══════════════════════════════════════════════════════════════
 let rootDirHandle = null;   // root: .../BdRanimation/
+
+// ── IndexedDB helpers for persisting the folder handle across page loads ──
+function _openHandleDB(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open('bdotranimation_handles',1);
+    r.onupgradeneeded=e=>e.target.result.createObjectStore('handles');
+    r.onsuccess=e=>res(e.target.result);
+    r.onerror=e=>rej(e.target.error);
+  });
+}
+async function saveHandleToIDB(handle){
+  const db=await _openHandleDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction('handles','readwrite');
+    tx.objectStore('handles').put(handle,'root');
+    tx.oncomplete=()=>res();
+    tx.onerror=e=>rej(e.target.error);
+  });
+}
+async function getHandleFromIDB(){
+  const db=await _openHandleDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction('handles','readonly');
+    const req=tx.objectStore('handles').get('root');
+    req.onsuccess=e=>res(e.target.result||null);
+    req.onerror=e=>rej(e.target.error);
+  });
+}
+
+async function getOrCreateDir(dirHandle, name){
+  return await dirHandle.getDirectoryHandle(name, {create:true});
+}
+
+async function writeJsonToFolder(inst){
+  if(!rootDirHandle) return false;
+  try{
+    const instancesDir = await getOrCreateDir(rootDirHandle, 'instances');
+    const instDir = await getOrCreateDir(instancesDir, inst.id);
+    const fileHandle = await instDir.getFileHandle(`${inst.id}.json`, {create:true});
+    const writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify(inst, null, 2));
+    await writable.close();
+    return true;
+  }catch(e){
+    console.warn('File system write failed:', e);
+    return false;
+  }
+}
 
 // ══════════════════════════════════════════════════════════════
 // STORAGE — file-input based, works on file:// with no server
@@ -651,6 +700,13 @@ function guessType(vals){
   return'analog';
 }
 const TAG_COLOURS=['#3498db','#2ecc71','#e74c3c','#e91e8c','#9b59b6','#f39c12','#1abc9c','#e67e22'];
+const STRIP_SUFFIXES=['oRawOutput','qInput'];
+function friendlyTagName(h){
+  const parts=h.split('.');
+  if(parts.length>1&&STRIP_SUFFIXES.includes(parts[parts.length-1]))
+    return parts.slice(0,-1).join('.').replace(/_/g,' ').slice(0,20);
+  return parts[parts.length-1].replace(/_/g,' ').slice(0,20);
+}
 
 function detectTagsFromCSV(headers,rows){
   return headers.slice(1).map((h,i)=>{
@@ -662,7 +718,7 @@ function detectTagsFromCSV(headers,rows){
     return{
       col:i+1,           // 1-based column in vals array (index 0 = first data col)
       csvCol:h,          // raw CSV header
-      name:h.split('.').pop().replace(/_/g,' ').slice(0,20), // friendly name
+      name:friendlyTagName(h),
       type,
       stroke:TAG_COLOURS[i%TAG_COLOURS.length],
       range_min:type==='analog'?parseFloat(mn.toFixed(2)):0,
@@ -688,9 +744,6 @@ function switchTab(tab){
   document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active'));
   const btnMap={instances:'vbtn-setup',replay:'vbtn-replay'};
   const ab=document.getElementById(btnMap[tab]);if(ab)ab.classList.add('active');
-  // Show/hide replay speed controls in header
-  const rspd=document.getElementById('replay-speed-controls');
-  if(rspd)rspd.style.display=tab==='replay'?'flex':'none';
   if(tab==='replay'){setTimeout(()=>{resizeReplay();draw();},20);}
 }
 
@@ -798,27 +851,6 @@ document.getElementById('hdr-inst-sel').addEventListener('change',e=>{
   if(e.target.value)openInstance(e.target.value);else newInstance();
 });
 
-document.getElementById('sb-flush-btn').onclick=async()=>{
-  if(!rootDirHandle){alert('No folder selected.');return;}
-  const insts=await fsLoadAllInstances();
-  const count=insts.length;
-  if(!count){alert('No instances found in folder.');return;}
-  if(!confirm(`This will permanently DELETE ${count} instance folder(s) from your filesystem.\n\nThis cannot be undone. Are you sure?`))return;
-  if(!confirm('Are you absolutely sure? All instance files will be deleted from disk.'))return;
-  for(const inst of insts) await fsDeleteInstance(inst.id);
-  activeInstance=null;editingInstance=null;activeTags=[];DS.shapes=[];formCsvFiles=[];
-  document.getElementById('inst-empty').style.display='flex';
-  document.getElementById('inst-form').style.display='none';
-  document.getElementById('hdr-inst').textContent='—';
-  document.getElementById('hdr-file').textContent='—';
-  document.getElementById('hdr-range').textContent='—';
-  document.getElementById('cur-time').textContent='—';
-  document.getElementById('sb-tag-legend').innerHTML='';
-  document.getElementById('sb-file-list').innerHTML='';
-  switchTab('instances');
-  await loadInstanceList();
-  alert('All instance folders deleted from disk.');
-};
 
 // ══════════════════════════════════════════════════════════════
 // CSV UPLOAD IN FORM
@@ -925,9 +957,25 @@ document.getElementById('btn-save-inst').onclick=async()=>{
   await fsSaveInstance(editingInstance);
   activeInstance=editingInstance;
   activeTags=editingInstance.tags||[];
-  document.getElementById('save-status').textContent='✓ Saved '+(new Date().toLocaleTimeString());
+  const ss=document.getElementById('save-status');
+  ss.textContent='✓ Saved '+(new Date().toLocaleTimeString());
+  ss.style.display='inline';
+  setTimeout(()=>{ss.style.display='none';},3000);
+  const saveBtn=document.getElementById('btn-save-inst');
+  const origText=saveBtn.textContent;
+  saveBtn.textContent='✓ Saved';
+  saveBtn.disabled=true;
+  setTimeout(()=>{saveBtn.textContent=origText;saveBtn.disabled=false;},1500);
   document.getElementById('btn-delete-inst').style.display='block';
   document.getElementById('hdr-inst').textContent=editingInstance.name||id;
+  const subname=document.getElementById('subhdr-name');
+  if(subname)subname.textContent=editingInstance.name||id;
+  // Save JSON to instances/<id>/<id>.json if folder is open, else download
+  const savedToFs = await writeJsonToFolder(editingInstance);
+  if(!savedToFs){
+    const blob=new Blob([JSON.stringify(editingInstance,null,2)],{type:'application/json'});
+    const dl=document.createElement('a');dl.href=URL.createObjectURL(blob);dl.download=`${id}.json`;dl.click();URL.revokeObjectURL(dl.href);
+  }
   buildSbTagLegend();
   await loadInstanceList();
 };
@@ -942,17 +990,7 @@ document.getElementById('btn-delete-inst').onclick=async()=>{
   await loadInstanceList();
 };
 
-// Export / import instance JSON
-document.getElementById('btn-export-inst').onclick=()=>{
-  if(!editingInstance)return;
-  const exp=JSON.parse(JSON.stringify(editingInstance));
-  const blob=new Blob([JSON.stringify(exp,null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${exp.id||'instance'}.json`;a.click();
-};
-// Import button - add a proper import button to the title bar area
-// Trigger via export button area - wire inst-import-input directly  
-const _importBtn=document.getElementById('btn-import-inst');
-if(_importBtn)_importBtn.onclick=()=>document.getElementById('inst-import-input').click();
+// Import via hidden file input (still supported programmatically)
 document.getElementById('inst-import-input').addEventListener('change',e=>{
   const f=e.target.files[0];if(!f)return;
   const r=new FileReader();r.onload=ev=>{
@@ -1005,8 +1043,9 @@ const replayEntries={};
 
 async function loadInstanceIntoReplay(inst){
   const fileList=document.getElementById('sb-file-list');fileList.innerHTML='';
+  const fileSection=document.getElementById('sb-file-section');if(fileSection)fileSection.style.display='none';
   const sel=document.getElementById('replay-file-sel');
-  sel.innerHTML='<option value="">— select file —</option>';
+  if(sel)sel.innerHTML='<option value="">— select file —</option>';
   Object.keys(replayEntries).forEach(k=>delete replayEntries[k]); // clear
   RS.rows=[];RS.currentIdx=0;RS.speed=0;RS.ovL=0;RS.ovR=1;
   activeTags=inst.tags||[];
@@ -1057,13 +1096,13 @@ function addReplayEntry(name, rows){
   replayEntries[name]=entry;
   const fileList=document.getElementById('sb-file-list');
   const sel=document.getElementById('replay-file-sel');
-  const sb=document.createElement('div');sb.className='inst-item';sb.textContent=name.replace('.csv','');
+  const sb=document.createElement('div');sb.className='file-item';sb.textContent=name.replace('.csv','');
   sb.onclick=()=>activateReplayFile(entry);
-  // Insert before any notice div
   const notice=fileList.querySelector('div[style]');
   if(notice)fileList.insertBefore(sb,notice);else fileList.appendChild(sb);
   const opt=document.createElement('option');opt.value=name;opt.textContent=name.replace('.csv','');
-  sel.appendChild(opt);
+  if(sel)sel.appendChild(opt);
+  document.getElementById('sb-file-section').style.display='block';
 }
 
 document.getElementById('replay-file-sel').addEventListener('change',e=>{
@@ -1076,7 +1115,7 @@ function activateReplayFile(entry){
   document.getElementById('no-data').classList.add('hidden');
   document.getElementById('hdr-file').textContent=entry.name.replace('.csv','');
   if(RS.rows.length)document.getElementById('hdr-range').textContent=`${fmtTime(RS.rows[0].time)} → ${fmtTime(RS.rows[RS.rows.length-1].time)}`;
-  document.querySelectorAll('#sb-file-list .sbi').forEach(el=>el.classList.toggle('active',el.textContent===entry.name.replace('.csv','')));
+  document.querySelectorAll('#sb-file-list .file-item').forEach(el=>el.classList.toggle('active',el.textContent===entry.name.replace('.csv','')));
   setSpeed(0);resizeReplay();
 }
 
@@ -1636,6 +1675,8 @@ async function init(){
     const warn=document.getElementById('file-protocol-warning');
     if(warn)warn.style.display='block';
   }
+  autoLoadFromLocalStorage();
+  await loadInstanceList();
   const restored = await initFileSystem();
   if(!restored){
     // Show the folder picker overlay
