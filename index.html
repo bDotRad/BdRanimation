@@ -755,7 +755,7 @@ function switchTab(tab){
   document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active'));
   const btnMap={instances:'vbtn-setup',replay:'vbtn-replay'};
   const ab=document.getElementById(btnMap[tab]);if(ab)ab.classList.add('active');
-  if(tab==='replay'){setTimeout(()=>{resizeReplay();draw();},20);}
+  if(tab==='replay'){requestAnimationFrame(()=>requestAnimationFrame(()=>{resizeReplay();draw();}));}
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -821,10 +821,9 @@ function populateForm(inst){
   }else{
     document.getElementById('tag-section').style.display='none';
   }
-  // Inst designer
+  // Inst designer — defer until browser has painted the newly-visible form
   DS.shapes=inst.shapes||[];
-  resizeInstCanvas();
-  drawInstDesigner();
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{resizeInstCanvas();drawInstDesigner();}));
   document.getElementById('save-status').textContent='';
 }
 
@@ -852,7 +851,7 @@ function newInstance(){
   if(subname)subname.textContent='New Instance';
   const noMsg=document.getElementById('no-inst-msg');
   if(noMsg)noMsg.style.display='none';
-  setTimeout(()=>{resizeInstCanvas();drawInstDesigner();},30);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{resizeInstCanvas();drawInstDesigner();}));
 }
 
 // btn-new-inst handled via sb-new-btn onclick above
