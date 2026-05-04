@@ -195,7 +195,7 @@ canvas{display:block;}
 <header id="header">
   <div style="display:flex;flex-direction:column;">
     <div id="logo-name">BdotRanimation</div>
-    <div id="logo-ver">Data Replay Engine v260504.1028</div>
+    <div id="logo-ver">Data Replay Engine v260504.1045</div>
   </div>
   <div class="hsep"></div>
   <span id="sb-status" style="font-size:9px;color:var(--text3);letter-spacing:.06em;">⏳ Connecting…</span>
@@ -440,12 +440,19 @@ const _SB_URL='https://lpinlvtxgefhzunuzsak.supabase.co';
 const _SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxwaW5sdnR4Z2VmaHp1bnV6c2FrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3OTU1OTIsImV4cCI6MjA5MzM3MTU5Mn0.JKdk3cbN6uigtuqCgrTtHTtvWAZnBW1wY3ofApDKadk';
 const sb=supabase.createClient(_SB_URL,_SB_KEY);
 let sbReady=false;
+let sbCsvsReady=false;
 
 async function sbCheck(){
   try{ const{error}=await sb.from('instances').select('id').limit(1); sbReady=!error; }catch(e){ sbReady=false; }
+  try{ const{error}=await sb.from('csvs').select('id').limit(1); sbCsvsReady=!error; }catch(e){ sbCsvsReady=false; }
   const el=document.getElementById('sb-status');
-  if(el)el.textContent=sbReady?'☁ Cloud connected':'⚠ Offline';
-  if(el)el.style.color=sbReady?'var(--accent)':'var(--red)';
+  if(!sbReady){
+    if(el){el.textContent='⚠ DB offline — check Supabase';el.style.color='var(--red)';}
+  }else if(!sbCsvsReady){
+    if(el){el.textContent='⚠ csvs table missing — run setup SQL';el.style.color='var(--red)';}
+  }else{
+    if(el){el.textContent='☁ Cloud connected';el.style.color='var(--accent)';}
+  }
   return sbReady;
 }
 
@@ -482,7 +489,7 @@ async function fsDeleteInstance(id){
 }
 async function fsSaveCSV(instId,filename,text){
   memSaveCSV(instId,filename,text);
-  if(!sbReady)return;
+  if(!sbReady||!sbCsvsReady)return sbCsvsReady===false?{message:'csvs table not created — run setup SQL in Supabase dashboard'}:null;
   const{error}=await sb.from('csvs').upsert({inst_id:instId,filename,content:text},{onConflict:'inst_id,filename'});
   if(error){console.warn('Supabase CSV save:',error.message);return error;}
   return null;
@@ -496,7 +503,7 @@ async function fsLoadCSV(instId,filename){
 }
 async function fsLoadAllCSVsForInstance(instId){
   const m=memLoadAllCSVsForInstance(instId); if(m.length)return m;
-  if(!sbReady)return [];
+  if(!sbReady||!sbCsvsReady)return [];
   const{data,error}=await sb.from('csvs').select('filename,content').eq('inst_id',instId);
   if(error||!data)return [];
   data.forEach(r=>memSaveCSV(instId,r.filename,r.content));
