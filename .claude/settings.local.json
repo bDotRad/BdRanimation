@@ -7,7 +7,9 @@
       "Bash(gh api *)",
       "Bash(gh.exe api *)",
       "PowerShell(gh api repos/bDotRad/BdRanimation/pages 2>&1)",
-      "Bash(powershell -command \"Get-Date -Format 'yyMMdd.HHmm'\")"
+      "Bash(powershell -command \"Get-Date -Format 'yyMMdd.HHmm'\")",
+      "Bash(Get-Item \"c:\\\\Users\\\\mailb\\\\OneDrive\\\\dev\\\\BdRanimation\\\\BdotRanimation.html\")",
+      "Bash(Select-Object Name, Length, LastWriteTime)"
     ]
   }
 }

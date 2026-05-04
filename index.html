@@ -86,6 +86,7 @@ body{font-family:'Consolas','JetBrains Mono',monospace;background:var(--bg);colo
 .fg{display:flex;flex-direction:column;gap:3px;}
 .fg label{font-size:9px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;}
 .fg input[type=text],.fg textarea{background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:inherit;font-size:11px;padding:5px 7px;border-radius:3px;width:100%;}
+.fg input[type=text]:read-only{opacity:.5;cursor:default;}
 .fg textarea{resize:vertical;min-height:48px;}
 .fg input:focus,.fg textarea:focus{outline:none;border-color:rgba(240,192,64,.4);}
 
@@ -194,7 +195,7 @@ canvas{display:block;}
 <header id="header">
   <div style="display:flex;flex-direction:column;">
     <div id="logo-name">BdotRanimation</div>
-    <div id="logo-ver">Data Replay Engine v260503.1548</div>
+    <div id="logo-ver">Data Replay Engine v260503.1722</div>
   </div>
   <div class="hsep"></div>
   <span id="sb-status" style="font-size:9px;color:var(--text3);letter-spacing:.06em;">⏳ Connecting…</span>
@@ -323,6 +324,7 @@ canvas{display:block;}
             <button class="tbtn" id="id-tool-circ-s">◯ Ellipse</button>
             <button class="tbtn" id="id-tool-rect-d">▭↔ Dyn Rect</button>
             <button class="tbtn" id="id-tool-circ-d">◯↔ Dyn Ellipse</button>
+            <button class="tbtn" id="id-tool-line">╱ Line</button>
             <div class="sep2"></div>
             <div id="inst-shape-props" style="display: none;">
               <label>Name</label><input type="text" id="isp-name">
@@ -599,7 +601,8 @@ let fracAccum=0;
 // Designer shared state
 const DS={
   shapes:[],active:null,tool:'select',gridSize:10,showGrid:true,
-  editState:'min',drawing:false,drawStart:{x:0,y:0},_curMx:0,_curMy:0
+  editState:'min',drawing:false,drawStart:{x:0,y:0},_curMx:0,_curMy:0,
+  linePoints:null
 };
 
 // Tags for active instance (array of tag objects)
@@ -748,7 +751,8 @@ async function openInstance(id){
 function populateForm(inst){
   document.getElementById('inst-empty').style.display='none';
   document.getElementById('inst-form').style.display='flex';
-  document.getElementById('f-id').value=inst.id||'';
+  const fidEl=document.getElementById('f-id');
+  fidEl.value=inst.id||'';fidEl.readOnly=!!inst.id;
   document.getElementById('f-name').value=inst.name||'';
   document.getElementById('f-desc').value=inst.description||'';
   document.getElementById('btn-delete-inst').style.display=inst.id?'block':'none';
@@ -775,7 +779,7 @@ function newInstance(){
   activeTags=[];DS.shapes=[];formCsvFiles=[];
   document.getElementById('inst-empty').style.display='none';
   document.getElementById('inst-form').style.display='flex';
-  document.getElementById('f-id').value='';
+  const _fid=document.getElementById('f-id');_fid.value='';_fid.readOnly=false;
   document.getElementById('f-name').value='';
   document.getElementById('f-desc').value='';
   document.getElementById('csv-chip-list').innerHTML='';
@@ -1203,6 +1207,15 @@ function drawAnimCanvas(){
 }
 
 function drawShapeRuntime(ctx,s,row){
+  if(s.type==='LINE'){
+    if(!s.points||s.points.length<2)return;
+    let t=0;if(s.tagId){const tag=activeTags.find(tg=>String(tg.col)===String(s.tagId));if(tag){const v=row.vals[tag.col-1];if(!isNaN(v))t=Math.max(0,Math.min(1,(v-tag.range_min)/(tag.range_max-tag.range_min||1)));}}
+    const[sr,sg,sb,sa]=lerpColor(s.minStroke,s.maxStroke,t);
+    ctx.strokeStyle=`rgba(${sr},${sg},${sb},${sa/255})`;ctx.lineWidth=s.lineWidth||2;
+    ctx.beginPath();ctx.moveTo(s.points[0].x,s.points[0].y);
+    for(let i=1;i<s.points.length;i++)ctx.lineTo(s.points[i].x,s.points[i].y);
+    ctx.stroke();return;
+  }
   let t=0;
   if(s.dynamic&&s.tagId){
     const tag=activeTags.find(tg=>String(tg.col)===String(s.tagId));
@@ -1287,6 +1300,13 @@ function makeShape(x,y,w,h,type,dynamic){
     minX:x,minY:y,minW:w,minH:h,minFill:[...df],minStroke:[...ds],
     maxX:dynamic?x+80:x,maxY:dynamic?y+40:y,maxW:w,maxH:h,maxFill:dynamic?[52,219,100,180]:[...df],maxStroke:dynamic?[52,219,100,255]:[...ds]};
 }
+function makeLine(points){
+  return{id:Date.now()+'_'+Math.random().toString(36).slice(2,6),
+    name:'Line_'+(DS.shapes.filter(s=>s.type==='LINE').length+1),
+    type:'LINE',dynamic:false,tagId:'',points,lineWidth:2,
+    minStroke:[255,255,255,255],maxStroke:[230,80,80,255]};
+}
+
 const dCv=document.getElementById('design-canvas');
 const dCtx=dCv?dCv.getContext('2d'):null;
 function resizeDesignCanvas(){const wrap=document.getElementById('design-canvas-wrap');if(!wrap||!dCv||!dCtx)return;const r=wrap.getBoundingClientRect();if(r.width<1||r.height<1)return;dCv.width=r.width*DPR;dCv.height=r.height*DPR;dCv.style.width=r.width+'px';dCv.style.height=r.height+'px';dCtx.resetTransform();dCtx.scale(DPR,DPR);}
@@ -1307,6 +1327,17 @@ function drawDesigner(){
 }
 
 function drawShapeDesign(ctx,s,isActive,mini){
+  if(s.type==='LINE'){
+    if(!s.points||s.points.length<2)return;
+    const[sr,sg,sb,sa]=s.minStroke;
+    ctx.strokeStyle=`rgba(${sr},${sg},${sb},${sa/255})`;ctx.lineWidth=isActive?(s.lineWidth||2)+1:(s.lineWidth||2);
+    ctx.beginPath();ctx.moveTo(s.points[0].x,s.points[0].y);
+    for(let i=1;i<s.points.length;i++)ctx.lineTo(s.points[i].x,s.points[i].y);
+    ctx.stroke();
+    if(isActive){s.points.forEach(p=>{ctx.fillStyle='#1a1d21';ctx.strokeStyle='rgba(60,140,255,1)';ctx.lineWidth=1.5;ctx.beginPath();ctx.rect(p.x-4,p.y-4,8,8);ctx.fill();ctx.stroke();});}
+    if(!mini){const mid=s.points[Math.floor(s.points.length/2)];ctx.fillStyle='rgba(255,255,255,.45)';ctx.font='9px Consolas,monospace';ctx.textAlign='center';ctx.fillText(s.name,mid.x,mid.y-7);}
+    return;
+  }
   const[fr,fg,fb,fa]=s.minFill,[sr,sg,sb,sa]=s.minStroke;
   ctx.fillStyle=`rgba(${fr},${fg},${fb},${fa/255})`;ctx.strokeStyle=`rgba(${sr},${sg},${sb},${sa/255})`;ctx.lineWidth=isActive?2:1.5;
   drawBody(ctx,s.type,s.minX,s.minY,s.minW,s.minH);
@@ -1327,12 +1358,30 @@ function drawHandles(ctx,x,y,w,h,col){[[x,y],[x+w,y+h],[x+w/2,y+h/2],[x+w,y],[x,
 
 let dDrag=null;
 function canvasPos(e,cv){const r=cv.getBoundingClientRect();return{x:snap(e.clientX-r.left),y:snap(e.clientY-r.top)};}
-function getHandle(s,mx,my,state){const x=s[state+'X'],y=s[state+'Y'],w=s[state+'W'],h=s[state+'H'];const pts={tl:[x,y],br:[x+w,y+h],mid:[x+w/2,y+h/2],tr:[x+w,y],bl:[x,y+h]};for(const[k,[px,py]]of Object.entries(pts)){if(Math.abs(mx-px)<8&&Math.abs(my-py)<8)return k;}return null;}
-function hitShape(mx,my){for(let i=DS.shapes.length-1;i>=0;i--){const s=DS.shapes[i];if(mx>=s.minX&&mx<=s.minX+s.minW&&my>=s.minY&&my<=s.minY+s.minH)return s;if(s.dynamic&&mx>=s.maxX&&mx<=s.maxX+s.maxW&&my>=s.maxY&&my<=s.maxY+s.maxH)return s;}return null;}
+function getHandle(s,mx,my,state){if(s.type==='LINE')return null;const x=s[state+'X'],y=s[state+'Y'],w=s[state+'W'],h=s[state+'H'];const pts={tl:[x,y],br:[x+w,y+h],mid:[x+w/2,y+h/2],tr:[x+w,y],bl:[x,y+h]};for(const[k,[px,py]]of Object.entries(pts)){if(Math.abs(mx-px)<8&&Math.abs(my-py)<8)return k;}return null;}
+function hitLine(s,mx,my){if(!s.points||s.points.length<2)return false;const T=7;for(let i=0;i<s.points.length-1;i++){const p1=s.points[i],p2=s.points[i+1],dx=p2.x-p1.x,dy=p2.y-p1.y,len2=dx*dx+dy*dy;if(!len2)continue;const t=Math.max(0,Math.min(1,((mx-p1.x)*dx+(my-p1.y)*dy)/len2));if(Math.hypot(mx-p1.x-t*dx,my-p1.y-t*dy)<T)return true;}return false;}
+function hitShape(mx,my){for(let i=DS.shapes.length-1;i>=0;i--){const s=DS.shapes[i];if(s.type==='LINE'){if(hitLine(s,mx,my))return s;continue;}if(mx>=s.minX&&mx<=s.minX+s.minW&&my>=s.minY&&my<=s.minY+s.minH)return s;if(s.dynamic&&mx>=s.maxX&&mx<=s.maxX+s.maxW&&my>=s.maxY&&my<=s.maxY+s.maxH)return s;}return null;}
+
+function finishLine(isInst,drawFn){
+  if(!DS.linePoints||DS.linePoints.length<2){DS.linePoints=null;return;}
+  const s=makeLine(DS.linePoints.map(p=>({...p})));
+  DS.linePoints=null;DS.tool='select';
+  const tm=isInst?instToolMap:toolMap;
+  Object.keys(tm).forEach(id=>{const el=document.getElementById(id);if(el)el.classList.toggle('active',tm[id]==='select');});
+  if(isInst&&idCv)idCv.style.cursor='default';else if(!isInst&&dCv)dCv.style.cursor='default';
+  DS.shapes.push(s);setActiveShape(s,isInst);
+  if(!isInst)rebuildShapeList();
+  drawFn();
+}
 
 function setupDesignerMouse(cv,drawFn,isInst){
   cv.addEventListener('mousedown',e=>{
     const{x,y}=canvasPos(e,cv);
+    // Line tool: each click adds a point
+    if(DS.tool==='line'){
+      if(!DS.linePoints){DS.linePoints=[{x,y}];}else{DS.linePoints.push({x,y});}
+      DS._curMx=x;DS._curMy=y;drawFn();return;
+    }
     if(DS.tool!=='select'){DS.drawing=true;DS.drawStart={x,y};DS._curMx=x;DS._curMy=y;return;}
     if(DS.active){
       const hm=getHandle(DS.active,x,y,'min');
@@ -1340,16 +1389,27 @@ function setupDesignerMouse(cv,drawFn,isInst){
       if(DS.active.dynamic){const hg=getHandle(DS.active,x,y,'max');if(hg){dDrag={cv,type:'handle_max',handle:hg,shape:DS.active,sx:x,sy:y,ox:DS.active.maxX,oy:DS.active.maxY,ow:DS.active.maxW,oh:DS.active.maxH};return;}}
     }
     const hit=hitShape(x,y);
-    if(hit){setActiveShape(hit,isInst);dDrag={cv,type:'move',shape:hit,sx:x,sy:y,ox:hit.minX,oy:hit.minY,oxM:hit.maxX,oyM:hit.maxY};}
-    else setActiveShape(null,isInst);
+    if(hit){
+      setActiveShape(hit,isInst);
+      if(hit.type==='LINE'){dDrag={cv,type:'move',shape:hit,sx:x,sy:y,oxPoints:hit.points.map(p=>({...p}))};}
+      else{dDrag={cv,type:'move',shape:hit,sx:x,sy:y,ox:hit.minX,oy:hit.minY,oxM:hit.maxX,oyM:hit.maxY};}
+    }else setActiveShape(null,isInst);
+  });
+  cv.addEventListener('dblclick',e=>{
+    if(!DS.linePoints)return;
+    // mousedown already added a point for this second click — remove the duplicate
+    if(DS.linePoints.length>1)DS.linePoints.pop();
+    finishLine(isInst,drawFn);dDrag=null;
   });
   cv.addEventListener('mousemove',e=>{
     DS._curMx=canvasPos(e,cv).x;DS._curMy=canvasPos(e,cv).y;
-    if(DS.drawing){drawFn();return;}
+    if(DS.drawing||DS.linePoints){drawFn();return;}
     if(!dDrag||dDrag.cv!==cv)return;
     const{x,y}=canvasPos(e,cv),dx=x-dDrag.sx,dy=y-dDrag.sy,s=dDrag.shape;
-    if(dDrag.type==='move'){s.minX=dDrag.ox+dx;s.minY=dDrag.oy+dy;if(s.dynamic){s.maxX=dDrag.oxM+dx;s.maxY=dDrag.oyM+dy;}}
-    else{const st=dDrag.type==='handle_min'?'min':'max',h=dDrag.handle,{ox,oy,ow,oh}=dDrag;
+    if(dDrag.type==='move'){
+      if(s.type==='LINE'){s.points=dDrag.oxPoints.map(p=>({x:snap(p.x+dx),y:snap(p.y+dy)}));}
+      else{s.minX=dDrag.ox+dx;s.minY=dDrag.oy+dy;if(s.dynamic){s.maxX=dDrag.oxM+dx;s.maxY=dDrag.oyM+dy;}}
+    }else{const st=dDrag.type==='handle_min'?'min':'max',h=dDrag.handle,{ox,oy,ow,oh}=dDrag;
       if(h==='mid'){s[st+'X']=ox+dx;s[st+'Y']=oy+dy;}
       else if(h==='br'){s[st+'W']=Math.max(DS.gridSize,ow+dx);s[st+'H']=Math.max(DS.gridSize,oh+dy);}
       else if(h==='tl'){s[st+'X']=ox+dx;s[st+'Y']=oy+dy;s[st+'W']=Math.max(DS.gridSize,ow-dx);s[st+'H']=Math.max(DS.gridSize,oh-dy);}
@@ -1368,20 +1428,24 @@ function setupDesignerMouse(cv,drawFn,isInst){
         setActiveShape(s,isInst);
         if(!isInst)rebuildShapeList();
       }
-      DS.drawing=false;
-      // auto select
-      DS.tool='select';
+      DS.drawing=false;DS.tool='select';
       document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('active'));
       document.getElementById(isInst?'id-tool-sel':'tool-sel').classList.add('active');
       cv.style.cursor='default';
     }
-    dDrag=null;drawFn();
+    if(!DS.linePoints)dDrag=null;drawFn();
   });
 }
 
 if(dCv)setupDesignerMouse(dCv,drawDesigner,false);
 
 window.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&DS.linePoints){
+    DS.linePoints=null;DS.tool='select';
+    Object.keys(instToolMap).forEach(id=>{const el=document.getElementById(id);if(el)el.classList.toggle('active',instToolMap[id]==='select');});
+    if(idCv)idCv.style.cursor='default';
+    drawInstDesigner();e.preventDefault();return;
+  }
   if((currentTab==='instances'||currentTab==='designer')&&(e.key==='Delete'||e.key==='Backspace')&&DS.active&&document.activeElement===document.body){
     DS.shapes=DS.shapes.filter(s=>s!==DS.active);setActiveShape(null,true);drawInstDesigner();
   }
@@ -1389,7 +1453,7 @@ window.addEventListener('keydown',e=>{
 
 // Tool buttons - shared (update both panels)
 const toolMap={'tool-sel':'select','tool-rect-s':'rect_s','tool-circ-s':'circ_s','tool-rect-d':'rect_d','tool-circ-d':'circ_d'};
-const instToolMap={'id-tool-sel':'select','id-tool-rect-s':'rect_s','id-tool-circ-s':'circ_s','id-tool-rect-d':'rect_d','id-tool-circ-d':'circ_d'};
+const instToolMap={'id-tool-sel':'select','id-tool-rect-s':'rect_s','id-tool-circ-s':'circ_s','id-tool-rect-d':'rect_d','id-tool-circ-d':'circ_d','id-tool-line':'line'};
 function setTool(tool){
   DS.tool=tool;
   Object.keys(toolMap).forEach(id=>{const el=document.getElementById(id);if(el)el.classList.toggle('active',toolMap[id]===tool);});
@@ -1440,7 +1504,7 @@ function setActiveShape(s,isInst){
   DS.active=s;
   if(isInst){
     document.getElementById('inst-shape-props').style.display=s?'flex':'none';
-    if(s){document.getElementById('isp-name').value=s.name;document.getElementById('isp-tag').value=s.tagId||'';document.getElementById('isp-state-wrap').style.display=s.dynamic?'flex':'none';updateInstShapeProps();}
+    if(s){document.getElementById('isp-name').value=s.name;document.getElementById('isp-tag').value=s.tagId||'';document.getElementById('isp-state-wrap').style.display=(s.dynamic||s.type==='LINE')?'flex':'none';DS.editState='min';document.querySelectorAll('#isp-state-wrap .stab').forEach(x=>x.classList.toggle('active',x.dataset.state==='min'));updateInstShapeProps();}
   }else{
     const _sp=document.getElementById('shape-props');if(_sp)_sp.style.display=s?'block':'none';
     if(s){
@@ -1501,6 +1565,13 @@ function drawInstDesigner(){
     ctx.beginPath();if(DS.tool==='circ_s'||DS.tool==='circ_d')ctx.ellipse(x+w/2,y+h/2,w/2||1,h/2||1,0,0,Math.PI*2);else ctx.rect(x,y,w,h);
     ctx.fill();ctx.stroke();ctx.setLineDash([]);
   }
+  if(DS.linePoints&&DS.linePoints.length>=1&&currentTab==='instances'){
+    ctx.strokeStyle='rgba(240,192,64,.8)';ctx.lineWidth=1.5;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(DS.linePoints[0].x,DS.linePoints[0].y);
+    for(let i=1;i<DS.linePoints.length;i++)ctx.lineTo(DS.linePoints[i].x,DS.linePoints[i].y);
+    ctx.lineTo(DS._curMx,DS._curMy);ctx.stroke();ctx.setLineDash([]);
+    DS.linePoints.forEach(p=>{ctx.fillStyle='rgba(240,192,64,.9)';ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);ctx.fill();});
+  }
 }
 
 setupDesignerMouse(idCv,drawInstDesigner,true);
@@ -1516,17 +1587,33 @@ document.getElementById('isp-name').addEventListener('input',e=>{if(DS.active){D
 document.getElementById('isp-tag').addEventListener('change',e=>{if(DS.active){DS.active.tagId=e.target.value;drawInstDesigner();}});
 document.querySelectorAll('#isp-state-wrap .stab').forEach(t=>{t.addEventListener('click',()=>{DS.editState=t.dataset.state;document.querySelectorAll('#isp-state-wrap .stab').forEach(x=>x.classList.toggle('active',x===t));updateInstShapeProps();});});
 function wireInstCol(colId,alphaId,fillOrStroke){
-  const upd=()=>{if(!DS.active)return;const st=DS.active.dynamic?DS.editState:'min';const key=st+(fillOrStroke==='fill'?'Fill':'Stroke');DS.active[key]=hexToRgba(document.getElementById(colId).value,parseInt(document.getElementById(alphaId).value));if(!DS.active.dynamic)DS.active['max'+(fillOrStroke==='fill'?'Fill':'Stroke')]=[...DS.active[key]];drawInstDesigner();};
+  const upd=()=>{
+    if(!DS.active)return;const s=DS.active;
+    const st=(s.dynamic||s.type==='LINE')?DS.editState:'min';
+    // For LINE: both pickers control stroke (line has no fill)
+    const effKey=s.type==='LINE'?'Stroke':(fillOrStroke==='fill'?'Fill':'Stroke');
+    const key=st+effKey;
+    s[key]=hexToRgba(document.getElementById(colId).value,parseInt(document.getElementById(alphaId).value));
+    if(!s.dynamic&&s.type!=='LINE')s['max'+effKey]=[...s[key]];
+    drawInstDesigner();
+  };
   document.getElementById(colId)?.addEventListener('input',upd);document.getElementById(alphaId)?.addEventListener('input',upd);
 }
 wireInstCol('isp-fill','isp-fill-a','fill');wireInstCol('isp-stroke','isp-stroke-a','stroke');
-document.getElementById('isp-sync').addEventListener('click',()=>{if(!DS.active)return;DS.active.maxFill=[...DS.active.minFill];DS.active.maxStroke=[...DS.active.minStroke];updateInstShapeProps();drawInstDesigner();});
+document.getElementById('isp-sync').addEventListener('click',()=>{
+  if(!DS.active)return;const s=DS.active;
+  if(s.type==='LINE'){s.maxStroke=[...s.minStroke];}
+  else{s.maxFill=[...s.minFill];s.maxStroke=[...s.minStroke];}
+  updateInstShapeProps();drawInstDesigner();
+});
 document.getElementById('isp-del').addEventListener('click',()=>{if(!DS.active)return;DS.shapes=DS.shapes.filter(s=>s!==DS.active);setActiveShape(null,true);drawInstDesigner();});
 
 function updateInstShapeProps(){
-  const s=DS.active;if(!s)return;const st=s.dynamic?DS.editState:'min';
-  const fill=s[st+'Fill'],stroke=s[st+'Stroke'];
-  document.getElementById('isp-fill').value=rgbaToHex(fill);document.getElementById('isp-fill-a').value=fill[3];
+  const s=DS.active;if(!s)return;
+  const st=(s.dynamic||s.type==='LINE')?DS.editState:'min';
+  const col=s.type==='LINE'?s[st+'Stroke']:s[st+'Fill'];
+  const stroke=s[st+'Stroke']||s.minStroke;
+  document.getElementById('isp-fill').value=rgbaToHex(col);document.getElementById('isp-fill-a').value=col[3];
   document.getElementById('isp-stroke').value=rgbaToHex(stroke);document.getElementById('isp-stroke-a').value=stroke[3];
 }
 
