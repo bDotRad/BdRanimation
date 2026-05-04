@@ -200,7 +200,7 @@ canvas{display:block;}
 <header id="header">
   <div style="display:flex;flex-direction:column;">
     <div id="logo-name">BdotRanimation</div>
-    <div id="logo-ver">Data Replay Engine v260504.2219</div>
+    <div id="logo-ver">Data Replay Engine v260505.0657</div>
   </div>
   <div class="hsep"></div>
   <span id="sb-status" style="font-size:9px;color:var(--text3);letter-spacing:.06em;">⏳ Connecting…</span>
@@ -1857,6 +1857,7 @@ function dupInstShape(){
   else{copy.minX+=off;copy.minY+=off;if(copy.dynamic){copy.maxX+=off;copy.maxY+=off;}}
   DS.shapes.push(copy);setActiveShape(copy,true);drawInstDesigner();
 }
+const SYM_PALETTE=['#ffffff','#c0c0c0','#808080','#404040','#181818','#e53935','#43a047','#1e88e5','#fdd835','#fb8c00','#e91e63','#8e24aa'];
 function buildInstPalette(){
   const pal=document.getElementById('inst-palette');if(!pal)return;
   SYM_PALETTE.forEach(hex=>{
@@ -2168,7 +2169,6 @@ document.addEventListener('keydown',e=>{
   if(currentTab!=='symbols')return;
   if((e.ctrlKey||e.metaKey)&&e.key==='d'){e.preventDefault();dupSymShape();}
 });
-const SYM_PALETTE=['#ffffff','#c0c0c0','#808080','#404040','#181818','#e53935','#43a047','#1e88e5','#fdd835','#fb8c00','#e91e63','#8e24aa'];
 function buildSymPalette(){
   const pal=document.getElementById('sym-palette');if(!pal)return;
   SYM_PALETTE.forEach(hex=>{
