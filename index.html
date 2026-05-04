@@ -195,7 +195,7 @@ canvas{display:block;}
 <header id="header">
   <div style="display:flex;flex-direction:column;">
     <div id="logo-name">BdotRanimation</div>
-    <div id="logo-ver">Data Replay Engine v260504.1015</div>
+    <div id="logo-ver">Data Replay Engine v260504.1028</div>
   </div>
   <div class="hsep"></div>
   <span id="sb-status" style="font-size:9px;color:var(--text3);letter-spacing:.06em;">⏳ Connecting…</span>
@@ -484,7 +484,8 @@ async function fsSaveCSV(instId,filename,text){
   memSaveCSV(instId,filename,text);
   if(!sbReady)return;
   const{error}=await sb.from('csvs').upsert({inst_id:instId,filename,content:text},{onConflict:'inst_id,filename'});
-  if(error)console.warn('Supabase CSV save:',error.message);
+  if(error){console.warn('Supabase CSV save:',error.message);return error;}
+  return null;
 }
 async function fsLoadCSV(instId,filename){
   const m=memLoadCSV(instId,filename); if(m)return m;
@@ -906,17 +907,28 @@ document.getElementById('btn-save-inst').onclick=async()=>{
   editingInstance.name=document.getElementById('f-name').value.trim()||id;
   editingInstance.description=document.getElementById('f-desc').value.trim();
   editingInstance.shapes=DS.shapes;
-  for(const f of formCsvFiles){ await fsSaveCSV(id, f.name, f.text); }
+  // Save instance first (CSVs have a foreign key to instances.id)
   await fsSaveInstance(editingInstance);
+  const csvErrors=[];
+  for(const f of formCsvFiles){
+    const err=await fsSaveCSV(id, f.name, f.text);
+    if(err)csvErrors.push(`${f.name}: ${err.message}`);
+  }
   activeInstance=editingInstance;
   activeTags=editingInstance.tags||[];
   const ss=document.getElementById('save-status');
-  ss.textContent='✓ Saved '+(new Date().toLocaleTimeString());
-  ss.style.display='inline';
-  setTimeout(()=>{ss.style.display='none';},3000);
+  if(csvErrors.length){
+    ss.textContent='⚠ CSV save failed: '+csvErrors[0];
+    ss.style.color='var(--red)';ss.style.display='inline';
+    setTimeout(()=>{ss.style.display='none';ss.style.color='';},6000);
+  }else{
+    ss.textContent='✓ Saved '+(new Date().toLocaleTimeString());
+    ss.style.color='';ss.style.display='inline';
+    setTimeout(()=>{ss.style.display='none';},3000);
+  }
   const saveBtn=document.getElementById('btn-save-inst');
   const origText=saveBtn.textContent;
-  saveBtn.textContent='✓ Saved';
+  saveBtn.textContent=csvErrors.length?'⚠ Partial':'✓ Saved';
   saveBtn.disabled=true;
   setTimeout(()=>{saveBtn.textContent=origText;saveBtn.disabled=false;},1500);
   document.getElementById('btn-delete-inst').style.display='block';
