@@ -195,7 +195,7 @@ canvas{display:block;}
 <header id="header">
   <div style="display:flex;flex-direction:column;">
     <div id="logo-name">BdotRanimation</div>
-    <div id="logo-ver">Data Replay Engine v260504.1210</div>
+    <div id="logo-ver">Data Replay Engine v260504.1229</div>
   </div>
   <div class="hsep"></div>
   <span id="sb-status" style="font-size:9px;color:var(--text3);letter-spacing:.06em;">⏳ Connecting…</span>
@@ -1151,13 +1151,9 @@ function drawOverview(){
     const sy=c.y+(DIGS+ti)*(dh+2);
     ctx.fillStyle='rgba(255,255,255,0.04)';ctx.fillRect(c.x,sy,c.w,dh);
     const[r,g,b]=hexToRgba(tag.stroke,0);
-    for(let i=0;i<N-1;i++){
-      const v=rows[i].vals[tag.col-1];if(isNaN(v))continue;
-      const norm=Math.max(0,Math.min(1,(v-tag.range_min)/(tag.range_max-tag.range_min||1)));
-      if(norm<.005)continue;
-      ctx.fillStyle=`rgba(${r},${g},${b},${norm.toFixed(3)})`;
-      ctx.fillRect(Math.floor(rowX(i,N,c.x,c.w)),sy,Math.max(1,Math.ceil(rowX(i+1,N,c.x,c.w))-Math.floor(rowX(i,N,c.x,c.w))),dh);
-    }
+    const pw=Math.ceil(c.w),av=new Float32Array(pw);
+    for(let i=0;i<N-1;i++){const v=rows[i].vals[tag.col-1];if(isNaN(v))continue;const norm=Math.max(0,Math.min(1,(v-tag.range_min)/(tag.range_max-tag.range_min||1)));const p0=Math.max(0,Math.floor(rowX(i,N,c.x,c.w)-c.x)),p1=Math.min(pw,Math.ceil(rowX(i+1,N,c.x,c.w)-c.x));for(let p=p0;p<p1;p++)av[p]=Math.max(av[p],norm);}
+    for(let p=0;p<pw;p++){if(av[p]<.005)continue;ctx.fillStyle=`rgba(${r},${g},${b},${av[p].toFixed(3)})`;ctx.fillRect(c.x+p,sy,1,dh);}
   });
   const lx=c.x+RS.ovL*c.w,rx=c.x+RS.ovR*c.w;
   ctx.fillStyle='rgba(240,192,64,.07)';ctx.fillRect(lx,c.y,rx-lx,c.h);
@@ -1200,12 +1196,9 @@ function drawDetail(){
     const sy=c.y+DIGS*(ddh+3)+ti*(adh+3);
     ctx.fillStyle='rgba(255,255,255,0.05)';ctx.fillRect(c.x,sy,c.w,adh);
     const[r,g,b]=hexToRgba(tag.stroke,0);
-    for(let i=0;i<vN-1;i++){
-      const v=vis[i].vals[tag.col-1];if(isNaN(v))continue;
-      const norm=Math.max(0,Math.min(1,(v-tag.range_min)/(tag.range_max-tag.range_min||1)));
-      if(norm<.005)continue;
-      ctx.fillStyle=`rgba(${r},${g},${b},${norm.toFixed(3)})`;
-      ctx.fillRect(Math.floor(rowX(i,vN,c.x,c.w)),sy,Math.max(1,Math.ceil(rowX(i+1,vN,c.x,c.w))-Math.floor(rowX(i,vN,c.x,c.w))),adh);
+    const pw2=Math.ceil(c.w),av2=new Float32Array(pw2);
+    for(let i=0;i<vN-1;i++){const v=vis[i].vals[tag.col-1];if(isNaN(v))continue;const norm=Math.max(0,Math.min(1,(v-tag.range_min)/(tag.range_max-tag.range_min||1)));const p0=Math.max(0,Math.floor(rowX(i,vN,c.x,c.w)-c.x)),p1=Math.min(pw2,Math.ceil(rowX(i+1,vN,c.x,c.w)-c.x));for(let p=p0;p<p1;p++)av2[p]=Math.max(av2[p],norm);}
+    for(let p=0;p<pw2;p++){if(av2[p]<.005)continue;ctx.fillStyle=`rgba(${r},${g},${b},${av2[p].toFixed(3)})`;ctx.fillRect(c.x+p,sy,1,adh);
     }
     const cv=(RS.currentIdx>=i0&&RS.currentIdx<=i1)?rows[RS.currentIdx].vals[tag.col-1]:vis[0].vals[tag.col-1];
     ctx.fillStyle=tag.stroke;ctx.font='9px Consolas,monospace';ctx.textAlign='right';
