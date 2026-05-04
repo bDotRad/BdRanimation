@@ -195,7 +195,7 @@ canvas{display:block;}
 <header id="header">
   <div style="display:flex;flex-direction:column;">
     <div id="logo-name">BdotRanimation</div>
-    <div id="logo-ver">Data Replay Engine v260504.1158</div>
+    <div id="logo-ver">Data Replay Engine v260504.1210</div>
   </div>
   <div class="hsep"></div>
   <span id="sb-status" style="font-size:9px;color:var(--text3);letter-spacing:.06em;">⏳ Connecting…</span>
@@ -1134,13 +1134,11 @@ function valY(v,mn,mx,y,h){return y+h-((v-mn)/(mx-mn||1))*h;}
 function drawOverview(){
   const ctx=ovCtx,rows=RS.rows,c=ca(ovCv,PADOV);ctx.clearRect(0,0,c.W,c.H);if(!rows.length)return;
   const N=rows.length,digs=digTags(),anas=anaTags();
-  const DIGS=digs.length,dh=Math.min(7,(c.h*.4)/Math.max(1,DIGS));
-  const aY=c.y+DIGS*(dh+2)+2,aH=c.h-(DIGS*(dh+2)+2);
+  const DIGS=digs.length,ANAS=anas.length;
+  const dh=Math.min(7,(c.h*.85)/Math.max(1,DIGS+ANAS));
   digs.forEach((tag,ti)=>{
     const sy=c.y+ti*(dh+2);
-    // Neutral dark track for OFF state
     ctx.fillStyle='rgba(255,255,255,0.04)';ctx.fillRect(c.x,sy,c.w,dh);
-    // Only paint ON segments — group contiguous runs to avoid sub-pixel seams
     ctx.fillStyle=tag.stroke;
     let rs=-1;
     for(let i=0;i<N;i++){
@@ -1149,10 +1147,17 @@ function drawOverview(){
       if(!on&&rs>=0){ctx.fillRect(Math.floor(rowX(rs,N,c.x,c.w)),sy,Math.max(1,Math.ceil(rowX(i,N,c.x,c.w))-Math.floor(rowX(rs,N,c.x,c.w))),dh);rs=-1;}
     }
   });
-  anas.forEach(tag=>{
-    ctx.strokeStyle=tag.stroke;ctx.lineWidth=1;ctx.beginPath();let first=true;
-    for(let i=0;i<N;i++){const v=rows[i].vals[tag.col-1];if(isNaN(v))continue;const x=rowX(i,N,c.x,c.w),y=valY(v,tag.range_min,tag.range_max,aY,aH);first?ctx.moveTo(x,y):ctx.lineTo(x,y);first=false;}
-    ctx.stroke();
+  anas.forEach((tag,ti)=>{
+    const sy=c.y+(DIGS+ti)*(dh+2);
+    ctx.fillStyle='rgba(255,255,255,0.04)';ctx.fillRect(c.x,sy,c.w,dh);
+    const[r,g,b]=hexToRgba(tag.stroke,0);
+    for(let i=0;i<N-1;i++){
+      const v=rows[i].vals[tag.col-1];if(isNaN(v))continue;
+      const norm=Math.max(0,Math.min(1,(v-tag.range_min)/(tag.range_max-tag.range_min||1)));
+      if(norm<.005)continue;
+      ctx.fillStyle=`rgba(${r},${g},${b},${norm.toFixed(3)})`;
+      ctx.fillRect(Math.floor(rowX(i,N,c.x,c.w)),sy,Math.max(1,Math.ceil(rowX(i+1,N,c.x,c.w))-Math.floor(rowX(i,N,c.x,c.w))),dh);
+    }
   });
   const lx=c.x+RS.ovL*c.w,rx=c.x+RS.ovR*c.w;
   ctx.fillStyle='rgba(240,192,64,.07)';ctx.fillRect(lx,c.y,rx-lx,c.h);
@@ -1166,36 +1171,53 @@ function drawDetail(){
   const N=rows.length,i0=Math.floor(RS.ovL*(N-1)),i1=Math.ceil(RS.ovR*(N-1));
   const vis=rows.slice(i0,i1+1),vN=vis.length;
   const digs=digTags(),anas=anaTags();
-  const dh=18,dArea=digs.length*(dh+3),aY=c.y+dArea+10,aH=c.h-dArea-10;
+  const DIGS=digs.length,ANAS=anas.length;
+  const ddh=18,adh=14;
+  const dArea=DIGS*(ddh+3)+ANAS*(adh+3);
+  const aY=c.y+dArea+10,aH=c.h-dArea-10;
   ctx.strokeStyle='rgba(255,255,255,.04)';ctx.lineWidth=1;
   for(let g=0;g<=4;g++){const gy=aY+(g/4)*aH;ctx.beginPath();ctx.moveTo(c.x,gy);ctx.lineTo(c.x+c.w,gy);ctx.stroke();}
+  // digital strips
   digs.forEach((tag,ti)=>{
-    const sy=c.y+ti*(dh+3);
-    // Neutral dark track (OFF state)
-    ctx.fillStyle='rgba(255,255,255,0.05)';ctx.fillRect(c.x,sy,c.w,dh);
-    // Only paint ON segments — group contiguous runs to avoid sub-pixel seams
+    const sy=c.y+ti*(ddh+3);
+    ctx.fillStyle='rgba(255,255,255,0.05)';ctx.fillRect(c.x,sy,c.w,ddh);
     ctx.fillStyle=tag.stroke;
     let rs=-1;
     for(let i=0;i<vN;i++){
       const on=(i<vN-1)&&vis[i].vals[tag.col-1]>=.5;
       if(on&&rs<0)rs=i;
-      if(!on&&rs>=0){ctx.fillRect(Math.floor(rowX(rs,vN,c.x,c.w)),sy,Math.max(1,Math.ceil(rowX(i,vN,c.x,c.w))-Math.floor(rowX(rs,vN,c.x,c.w))),dh);rs=-1;}
+      if(!on&&rs>=0){ctx.fillRect(Math.floor(rowX(rs,vN,c.x,c.w)),sy,Math.max(1,Math.ceil(rowX(i,vN,c.x,c.w))-Math.floor(rowX(rs,vN,c.x,c.w))),ddh);rs=-1;}
     }
     const cv=(RS.currentIdx>=i0&&RS.currentIdx<=i1)?rows[RS.currentIdx].vals[tag.col-1]:vis[0].vals[tag.col-1];
     const on=cv>=.5;
-    // Left label: tag name
     ctx.fillStyle=on?tag.stroke:ha(tag.stroke,.5);ctx.font='9px Consolas,monospace';ctx.textAlign='right';
-    ctx.fillText(tag.name,c.x-4,sy+dh/2+3);
-    // Right-aligned ON/OFF state
-    ctx.textAlign='left';
-    ctx.fillStyle='rgba(255,255,255,.7)';ctx.font='bold 9px Consolas,monospace';
-    ctx.fillText(on?'ON':'OFF',c.x+4,sy+dh/2+3);
+    ctx.fillText(tag.name,c.x-4,sy+ddh/2+3);
+    ctx.textAlign='left';ctx.fillStyle='rgba(255,255,255,.7)';ctx.font='bold 9px Consolas,monospace';
+    ctx.fillText(on?'ON':'OFF',c.x+4,sy+ddh/2+3);
   });
+  // analog intensity strips
+  anas.forEach((tag,ti)=>{
+    const sy=c.y+DIGS*(ddh+3)+ti*(adh+3);
+    ctx.fillStyle='rgba(255,255,255,0.05)';ctx.fillRect(c.x,sy,c.w,adh);
+    const[r,g,b]=hexToRgba(tag.stroke,0);
+    for(let i=0;i<vN-1;i++){
+      const v=vis[i].vals[tag.col-1];if(isNaN(v))continue;
+      const norm=Math.max(0,Math.min(1,(v-tag.range_min)/(tag.range_max-tag.range_min||1)));
+      if(norm<.005)continue;
+      ctx.fillStyle=`rgba(${r},${g},${b},${norm.toFixed(3)})`;
+      ctx.fillRect(Math.floor(rowX(i,vN,c.x,c.w)),sy,Math.max(1,Math.ceil(rowX(i+1,vN,c.x,c.w))-Math.floor(rowX(i,vN,c.x,c.w))),adh);
+    }
+    const cv=(RS.currentIdx>=i0&&RS.currentIdx<=i1)?rows[RS.currentIdx].vals[tag.col-1]:vis[0].vals[tag.col-1];
+    ctx.fillStyle=tag.stroke;ctx.font='9px Consolas,monospace';ctx.textAlign='right';
+    ctx.fillText(tag.name,c.x-4,sy+adh/2+3);
+    ctx.textAlign='left';ctx.fillStyle='rgba(255,255,255,.7)';ctx.font='bold 9px Consolas,monospace';
+    if(!isNaN(cv))ctx.fillText(cv.toFixed(1),c.x+4,sy+adh/2+3);
+  });
+  // analog line charts
   anas.forEach((tag,ti)=>{
     const axX=c.x-8-ti*38;ctx.strokeStyle=ha(tag.stroke,.35);ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(axX+2,aY);ctx.lineTo(axX+2,aY+aH);ctx.stroke();
     ctx.fillStyle=tag.stroke;ctx.font='9px Consolas,monospace';ctx.textAlign='right';
     [0,.25,.5,.75,1].forEach(f=>{ctx.fillText((tag.range_min+f*(tag.range_max-tag.range_min)).toFixed(0),axX-1,aY+(1-f)*aH+3);});
-    if(RS.currentIdx>=i0&&RS.currentIdx<=i1){const cv=rows[RS.currentIdx].vals[tag.col-1];if(!isNaN(cv))ctx.fillText(cv.toFixed(1),axX-1,aY-4-ti*11);}
     ctx.strokeStyle=tag.stroke;ctx.lineWidth=1.5;ctx.beginPath();let first=true;
     for(let i=0;i<vN;i++){const v=vis[i].vals[tag.col-1];if(isNaN(v))continue;const x=rowX(i,vN,c.x,c.w),y=valY(v,tag.range_min,tag.range_max,aY,aH);first?ctx.moveTo(x,y):ctx.lineTo(x,y);first=false;}
     ctx.stroke();
