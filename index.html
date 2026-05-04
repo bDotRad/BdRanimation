@@ -195,7 +195,7 @@ canvas{display:block;}
 <header id="header">
   <div style="display:flex;flex-direction:column;">
     <div id="logo-name">BdotRanimation</div>
-    <div id="logo-ver">Data Replay Engine v260504.1607</div>
+    <div id="logo-ver">Data Replay Engine v260504.2005</div>
   </div>
   <div class="hsep"></div>
   <span id="sb-status" style="font-size:9px;color:var(--text3);letter-spacing:.06em;">⏳ Connecting…</span>
@@ -348,6 +348,9 @@ canvas{display:block;}
               <div class="sep2"></div>
               <label>Show</label>
               <select id="isp-show-when"><option value="always">always</option><option value="off">OFF only</option><option value="on">ON only</option></select>
+              <label style="margin-left:4px;">+</label>
+              <select id="isp-tag2"><option value="">—</option></select>
+              <select id="isp-show-when2"><option value="off">OFF</option><option value="on">ON</option></select>
               <button class="tbtn" id="isp-rotate" style="font-size:9px;display:none;">↻ 90°</button>
               <div class="sep2"></div>
               <button class="tbtn" id="isp-sync" style="font-size:9px;">↓MIN→MAX col</button>
@@ -1274,7 +1277,13 @@ function _showWhenVisible(s,row){
   const _tg=activeTags.find(tg=>String(tg.col)===String(s.tagId));
   if(!_tg)return true;
   const _on=row.vals[_tg.col-1]>=.5;
-  return(sw==='on'&&_on)||(sw==='off'&&!_on);
+  const c1=(sw==='on'&&_on)||(sw==='off'&&!_on);
+  if(!c1)return false;
+  if(s.tagId2&&s.showWhen2){
+    const _tg2=activeTags.find(tg=>String(tg.col)===String(s.tagId2));
+    if(_tg2){const _on2=row.vals[_tg2.col-1]>=.5;return(s.showWhen2==='on'&&_on2)||(s.showWhen2==='off'&&!_on2);}
+  }
+  return true;
 }
 function drawShapeRuntime(ctx,s,row){
   if(!_showWhenVisible(s,row))return;
@@ -1661,7 +1670,7 @@ function setActiveShape(s,isInst){
   DS.active=s;
   if(isInst){
     document.getElementById('inst-shape-props').style.visibility=s?'visible':'hidden';
-    if(s){document.getElementById('isp-name').value=s.name;document.getElementById('isp-tag').value=s.tagId||'';document.getElementById('isp-state-wrap').style.display=(s.dynamic||s.type==='LINE'||s.type==='VALVE')?'flex':'none';DS.editState='min';document.querySelectorAll('#isp-state-wrap .stab').forEach(x=>x.classList.toggle('active',x.dataset.state==='min'));document.getElementById('isp-label-mode').value=s.labelMode||'name';document.getElementById('isp-show-when').value=s.showWhen||'always';document.getElementById('isp-rotate').style.display=s.type==='VALVE'?'inline-flex':'none';updateInstShapeProps();}
+    if(s){document.getElementById('isp-name').value=s.name;document.getElementById('isp-tag').value=s.tagId||'';document.getElementById('isp-state-wrap').style.display=(s.dynamic||s.type==='LINE'||s.type==='VALVE')?'flex':'none';DS.editState='min';document.querySelectorAll('#isp-state-wrap .stab').forEach(x=>x.classList.toggle('active',x.dataset.state==='min'));document.getElementById('isp-label-mode').value=s.labelMode||'name';document.getElementById('isp-show-when').value=s.showWhen||'always';document.getElementById('isp-tag2').value=s.tagId2||'';document.getElementById('isp-show-when2').value=s.showWhen2||'off';document.getElementById('isp-rotate').style.display=s.type==='VALVE'?'inline-flex':'none';updateInstShapeProps();}
   }else{
     const _sp=document.getElementById('shape-props');if(_sp)_sp.style.display=s?'block':'none';
     if(s){
@@ -1735,10 +1744,12 @@ setupDesignerMouse(idCv,drawInstDesigner,true);
 
 // Instance shape props toolbar
 function rebuildInstTagDropdown(){
-  const sel=document.getElementById('isp-tag');
-  sel.innerHTML='<option value="">— upload CSV to link tag —</option>';
-  if(activeTags.length) sel.options[0].textContent='— none —';
-  activeTags.forEach(tag=>{const opt=document.createElement('option');opt.value=tag.col;opt.textContent=`${tag.name} (${tag.type})`;sel.appendChild(opt);});
+  ['isp-tag','isp-tag2'].forEach((id,i)=>{
+    const sel=document.getElementById(id);
+    sel.innerHTML=i===0?'<option value="">— upload CSV to link tag —</option>':'<option value="">— none —</option>';
+    if(i===0&&activeTags.length)sel.options[0].textContent='— none —';
+    activeTags.forEach(tag=>{const opt=document.createElement('option');opt.value=tag.col;opt.textContent=`${tag.name} (${tag.type})`;sel.appendChild(opt);});
+  });
 }
 document.getElementById('isp-name').addEventListener('input',e=>{if(DS.active){DS.active.name=e.target.value;drawInstDesigner();}});
 document.getElementById('isp-tag').addEventListener('change',e=>{if(DS.active){DS.active.tagId=e.target.value;drawInstDesigner();}});
@@ -1767,6 +1778,8 @@ document.getElementById('isp-sync').addEventListener('click',()=>{
 });
 document.getElementById('isp-del').addEventListener('click',()=>{if(!DS.active)return;DS.shapes=DS.shapes.filter(s=>s!==DS.active);setActiveShape(null,true);drawInstDesigner();});
 document.getElementById('isp-show-when').addEventListener('change',e=>{if(DS.active){DS.active.showWhen=e.target.value;drawInstDesigner();}});
+document.getElementById('isp-tag2').addEventListener('change',e=>{if(DS.active){DS.active.tagId2=e.target.value;drawInstDesigner();}});
+document.getElementById('isp-show-when2').addEventListener('change',e=>{if(DS.active){DS.active.showWhen2=e.target.value;drawInstDesigner();}});
 document.getElementById('isp-rotate').addEventListener('click',()=>{if(DS.active){DS.active.rotation=DS.active.rotation?0:90;drawInstDesigner();}});
 
 function updateInstShapeProps(){
