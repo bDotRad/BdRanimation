@@ -200,7 +200,7 @@ canvas{display:block;}
 <header id="header">
   <div style="display:flex;flex-direction:column;">
     <div id="logo-name">BdotRanimation</div>
-    <div id="logo-ver">Data Replay Engine v260504.2055</div>
+    <div id="logo-ver">Data Replay Engine v260504.2059</div>
   </div>
   <div class="hsep"></div>
   <span id="sb-status" style="font-size:9px;color:var(--text3);letter-spacing:.06em;">⏳ Connecting…</span>
@@ -385,31 +385,33 @@ canvas{display:block;}
         <div id="sym-list" style="flex:1;overflow-y:auto;padding:4px;display:flex;flex-direction:column;gap:2px;"></div>
       </div>
       <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;">
-        <div id="sym-toolbar" style="display:flex;align-items:center;gap:6px;padding:4px 8px;border-bottom:1px solid var(--border);flex-wrap:wrap;min-height:36px;flex-shrink:0;">
-          <span class="ts2">Tool</span>
-          <button class="tbtn active" id="sym-tool-sel">↖ Select</button>
-          <button class="tbtn" id="sym-tool-rect">▭ Rect</button>
-          <button class="tbtn" id="sym-tool-circ">◯ Circle</button>
-          <button class="tbtn" id="sym-tool-line">╱ Line</button>
-          <div class="sep2"></div>
-          <div id="sym-shape-props" style="display:none;align-items:center;gap:4px;">
-            <label>Fill</label><input type="color" id="sym-fill" value="#b4b4b4"><input type="range" id="sym-fill-a" min="0" max="255" value="200" style="width:44px">
-            <label>Stroke</label><input type="color" id="sym-stroke" value="#787878"><input type="range" id="sym-stroke-a" min="0" max="255" value="255" style="width:44px">
-            <label>Lw</label><input type="number" id="sym-lw" min="0.5" max="10" step="0.5" value="1" style="width:38px">
-            <button class="tbtn" id="sym-dup-shape" style="font-size:9px;" title="Duplicate (Ctrl+D)">⧉ Dup</button>
-            <button class="tbtn danger" id="sym-del-shape" style="font-size:9px;">✕ Shape</button>
+        <div id="sym-toolbar" style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px;border-bottom:1px solid var(--border);min-height:36px;flex-shrink:0;gap:6px;">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <span class="ts2">Tool</span>
+            <button class="tbtn active" id="sym-tool-sel">↖ Select</button>
+            <button class="tbtn" id="sym-tool-rect">▭ Rect</button>
+            <button class="tbtn" id="sym-tool-circ">◯ Circle</button>
+            <button class="tbtn" id="sym-tool-line">╱ Line</button>
+            <div class="sep2"></div>
+            <div id="sym-shape-props" style="display:none;align-items:center;gap:4px;">
+              <label>Fill</label><input type="color" id="sym-fill" value="#b4b4b4"><input type="range" id="sym-fill-a" min="0" max="255" value="200" style="width:44px">
+              <label>Stroke</label><input type="color" id="sym-stroke" value="#787878"><input type="range" id="sym-stroke-a" min="0" max="255" value="255" style="width:44px">
+              <label>Lw</label><input type="number" id="sym-lw" min="0.5" max="10" step="0.5" value="1" style="width:38px">
+              <button class="tbtn" id="sym-dup-shape" style="font-size:9px;" title="Duplicate (Ctrl+D)">⧉ Dup</button>
+              <button class="tbtn danger" id="sym-del-shape" style="font-size:9px;">✕ Shape</button>
+            </div>
+            <div class="sep2"></div>
+            <div id="sym-palette" style="display:flex;gap:2px;align-items:center;flex-wrap:wrap;"></div>
           </div>
-          <div class="sep2"></div>
-          <div id="sym-palette" style="display:flex;gap:2px;align-items:center;flex-wrap:wrap;"></div>
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;border-left:1px solid var(--border);padding-left:8px;">
+            <label>Name</label><input type="text" id="sym-name-input" style="width:140px;" placeholder="Symbol name">
+            <button class="tbtn" id="sym-save-btn">💾 Save</button>
+            <button class="tbtn danger" id="sym-delete-sym-btn">✕ Delete</button>
+            <span id="sym-save-msg" style="font-size:9px;color:var(--text3);"></span>
+          </div>
         </div>
         <div id="sym-editor-wrap" style="flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:8px;background:var(--bg);">
           <canvas id="sym-editor-canvas" style="cursor:crosshair;display:block;"></canvas>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-top:1px solid var(--border);flex-shrink:0;">
-          <label>Name</label><input type="text" id="sym-name-input" style="width:160px;" placeholder="Symbol name">
-          <button class="tbtn" id="sym-save-btn">💾 Save</button>
-          <button class="tbtn danger" id="sym-delete-sym-btn">✕ Delete</button>
-          <span id="sym-save-msg" style="font-size:9px;color:var(--text3);"></span>
         </div>
       </div>
     </div>
