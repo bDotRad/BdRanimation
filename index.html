@@ -200,7 +200,7 @@ canvas{display:block;}
 <header id="header">
   <div style="display:flex;flex-direction:column;">
     <div id="logo-name">BdotRanimation</div>
-    <div id="logo-ver">Data Replay Engine v260504.2059</div>
+    <div id="logo-ver">Data Replay Engine v260504.2219</div>
   </div>
   <div class="hsep"></div>
   <span id="sb-status" style="font-size:9px;color:var(--text3);letter-spacing:.06em;">⏳ Connecting…</span>
@@ -351,6 +351,7 @@ canvas{display:block;}
               </div>
               <label>Fill</label><input type="color" id="isp-fill"><input type="range" id="isp-fill-a" min="0" max="255" value="180">
               <label>Stroke</label><input type="color" id="isp-stroke"><input type="range" id="isp-stroke-a" min="0" max="255" value="255">
+              <div id="inst-palette" style="display:flex;gap:2px;align-items:center;flex-wrap:wrap;margin-left:2px;"></div>
               <div class="sep2"></div>
               <label>Label</label>
               <select id="isp-label-mode"><option value="none">none</option><option value="name" selected>name</option><option value="name+value">name+val</option></select>
@@ -364,6 +365,7 @@ canvas{display:block;}
               <button class="tbtn" id="isp-rotate" style="font-size:9px;display:none;">↻ 90°</button>
               <div class="sep2"></div>
               <button class="tbtn" id="isp-sync" style="font-size:9px;">↓MIN→MAX col</button>
+              <button class="tbtn" id="isp-dup" style="font-size:9px;" title="Duplicate (Ctrl+D)">⧉ Dup</button>
               <button class="tbtn danger" id="isp-del">✕</button>
             </div>
           </div>
@@ -757,7 +759,7 @@ function detectTagsFromCSV(headers,rows){
 // TABS
 // ══════════════════════════════════════════════════════════════
 async function handleReplayNav(){
-  if(activeInstance){await loadInstanceIntoReplay(activeInstance);}
+  if(activeInstance){activeInstance.shapes=DS.shapes;await loadInstanceIntoReplay(activeInstance);}
   switchTab('replay');
 }
 function switchTab(tab){
@@ -1679,6 +1681,7 @@ window.addEventListener('keydown',e=>{
   if((currentTab==='instances'||currentTab==='designer')&&(e.key==='Delete'||e.key==='Backspace')&&DS.active&&document.activeElement===document.body){
     DS.shapes=DS.shapes.filter(s=>s!==DS.active);setActiveShape(null,true);drawInstDesigner();
   }
+  if((currentTab==='instances'||currentTab==='designer')&&(e.ctrlKey||e.metaKey)&&e.key==='d'&&DS.active){e.preventDefault();dupInstShape();}
 });
 
 // Tool buttons - shared (update both panels)
@@ -1843,6 +1846,36 @@ document.getElementById('isp-sync').addEventListener('click',()=>{
   updateInstShapeProps();drawInstDesigner();
 });
 document.getElementById('isp-del').addEventListener('click',()=>{if(!DS.active)return;DS.shapes=DS.shapes.filter(s=>s!==DS.active);setActiveShape(null,true);drawInstDesigner();});
+document.getElementById('isp-dup').addEventListener('click',dupInstShape);
+function dupInstShape(){
+  if(!DS.active)return;
+  const copy=JSON.parse(JSON.stringify(DS.active));
+  copy.id=Date.now()+'_'+Math.random().toString(36).slice(2,6);
+  copy.name=copy.name+'_copy';
+  const off=DS.gridSize;
+  if(copy.type==='LINE')copy.points=copy.points.map(p=>({x:p.x+off,y:p.y+off}));
+  else{copy.minX+=off;copy.minY+=off;if(copy.dynamic){copy.maxX+=off;copy.maxY+=off;}}
+  DS.shapes.push(copy);setActiveShape(copy,true);drawInstDesigner();
+}
+function buildInstPalette(){
+  const pal=document.getElementById('inst-palette');if(!pal)return;
+  SYM_PALETTE.forEach(hex=>{
+    const b=document.createElement('button');
+    b.style.cssText=`width:14px;height:14px;background:${hex};border:1px solid rgba(255,255,255,.2);border-radius:2px;cursor:pointer;padding:0;flex-shrink:0;`;
+    b.title=`Fill: ${hex}  |  Shift=Stroke`;
+    b.addEventListener('click',e=>{
+      if(!DS.active||DS.active.type==='SYMBOL')return;
+      const s=DS.active,rgb=hexToRgba(hex,255);
+      const st=(s.dynamic||s.type==='LINE'||s.type==='VALVE')?DS.editState:'min';
+      if(s.type==='LINE'){const a=s[st+'Stroke'][3];s[st+'Stroke']=[rgb[0],rgb[1],rgb[2],a];}
+      else if(e.shiftKey){const a=s[st+'Stroke'][3];s[st+'Stroke']=[rgb[0],rgb[1],rgb[2],a];}
+      else{const a=s[st+'Fill'][3];s[st+'Fill']=[rgb[0],rgb[1],rgb[2],a];}
+      updateInstShapeProps();drawInstDesigner();
+    });
+    pal.appendChild(b);
+  });
+}
+buildInstPalette();
 document.getElementById('isp-show-when').addEventListener('change',e=>{if(DS.active){DS.active.showWhen=e.target.value;drawInstDesigner();}});
 document.getElementById('isp-tag2').addEventListener('change',e=>{if(DS.active){DS.active.tagId2=e.target.value;drawInstDesigner();}});
 document.getElementById('isp-show-when2').addEventListener('change',e=>{if(DS.active){DS.active.showWhen2=e.target.value;drawInstDesigner();}});
