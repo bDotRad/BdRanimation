@@ -195,7 +195,7 @@ canvas{display:block;}
 <header id="header">
   <div style="display:flex;flex-direction:column;">
     <div id="logo-name">BdotRanimation</div>
-    <div id="logo-ver">Data Replay Engine v260504.1114</div>
+    <div id="logo-ver">Data Replay Engine v260504.1136</div>
   </div>
   <div class="hsep"></div>
   <span id="sb-status" style="font-size:9px;color:var(--text3);letter-spacing:.06em;">⏳ Connecting…</span>
@@ -335,6 +335,10 @@ canvas{display:block;}
               </div>
               <label>Fill</label><input type="color" id="isp-fill"><input type="range" id="isp-fill-a" min="0" max="255" value="180">
               <label>Stroke</label><input type="color" id="isp-stroke"><input type="range" id="isp-stroke-a" min="0" max="255" value="255">
+              <div class="sep2"></div>
+              <label>Label</label>
+              <select id="isp-label-mode"><option value="none">none</option><option value="name" selected>name</option><option value="name+value">name+val</option></select>
+              <select id="isp-label-pos"><option value="center" selected>center</option><option value="top">top</option><option value="bottom">bottom</option></select>
               <div class="sep2"></div>
               <button class="tbtn" id="isp-sync" style="font-size:9px;">↓MIN→MAX col</button>
               <button class="tbtn danger" id="isp-del">✕</button>
@@ -1136,13 +1140,13 @@ function drawOverview(){
     const sy=c.y+ti*(dh+2);
     // Neutral dark track for OFF state
     ctx.fillStyle='rgba(255,255,255,0.04)';ctx.fillRect(c.x,sy,c.w,dh);
-    // Only paint ON segments
+    // Only paint ON segments — group contiguous runs to avoid sub-pixel seams
     ctx.fillStyle=tag.stroke;
-    for(let i=0;i<N-1;i++){
-      if(rows[i].vals[tag.col-1]>=.5){
-        const x0=rowX(i,N,c.x,c.w),x1=rowX(i+1,N,c.x,c.w);
-        ctx.fillRect(x0,sy,Math.max(.5,x1-x0),dh);
-      }
+    let rs=-1;
+    for(let i=0;i<N;i++){
+      const on=(i<N-1)&&rows[i].vals[tag.col-1]>=.5;
+      if(on&&rs<0)rs=i;
+      if(!on&&rs>=0){ctx.fillRect(Math.floor(rowX(rs,N,c.x,c.w)),sy,Math.max(1,Math.ceil(rowX(i,N,c.x,c.w))-Math.floor(rowX(rs,N,c.x,c.w))),dh);rs=-1;}
     }
   });
   anas.forEach(tag=>{
@@ -1169,13 +1173,13 @@ function drawDetail(){
     const sy=c.y+ti*(dh+3);
     // Neutral dark track (OFF state)
     ctx.fillStyle='rgba(255,255,255,0.05)';ctx.fillRect(c.x,sy,c.w,dh);
-    // Only paint ON segments
+    // Only paint ON segments — group contiguous runs to avoid sub-pixel seams
     ctx.fillStyle=tag.stroke;
-    for(let i=0;i<vN-1;i++){
-      if(vis[i].vals[tag.col-1]>=.5){
-        const x0=rowX(i,vN,c.x,c.w),x1=rowX(i+1,vN,c.x,c.w);
-        ctx.fillRect(x0,sy,Math.max(1,x1-x0),dh);
-      }
+    let rs=-1;
+    for(let i=0;i<vN;i++){
+      const on=(i<vN-1)&&vis[i].vals[tag.col-1]>=.5;
+      if(on&&rs<0)rs=i;
+      if(!on&&rs>=0){ctx.fillRect(Math.floor(rowX(rs,vN,c.x,c.w)),sy,Math.max(1,Math.ceil(rowX(i,vN,c.x,c.w))-Math.floor(rowX(rs,vN,c.x,c.w))),dh);rs=-1;}
     }
     const cv=(RS.currentIdx>=i0&&RS.currentIdx<=i1)?rows[RS.currentIdx].vals[tag.col-1]:vis[0].vals[tag.col-1];
     const on=cv>=.5;
@@ -1228,7 +1232,9 @@ function drawShapeRuntime(ctx,s,row){
     ctx.strokeStyle=`rgba(${sr},${sg},${sb},${sa/255})`;ctx.lineWidth=s.lineWidth||2;
     ctx.beginPath();ctx.moveTo(s.points[0].x,s.points[0].y);
     for(let i=1;i<s.points.length;i++)ctx.lineTo(s.points[i].x,s.points[i].y);
-    ctx.stroke();return;
+    ctx.stroke();
+    const _lmL=s.labelMode||'name';if(_lmL!=='none'){const _mid=s.points[Math.floor(s.points.length/2)];let _txtL=s.name;if(_lmL==='name+value'&&s.tagId){const _tg=activeTags.find(tg=>String(tg.col)===String(s.tagId));if(_tg){const _v=row.vals[_tg.col-1];if(!isNaN(_v))_txtL=`${s.name} ${_tg.type==='digital'?_v>=.5?'ON':'OFF':_v.toFixed(1)}`;}}ctx.fillStyle='rgba(255,255,255,.7)';ctx.font='bold 9px Consolas,monospace';ctx.textAlign='center';ctx.fillText(_txtL,_mid.x,_mid.y-7);}
+    return;
   }
   let t=0;
   if(s.dynamic&&s.tagId){
@@ -1243,6 +1249,7 @@ function drawShapeRuntime(ctx,s,row){
   ctx.beginPath();
   if(s.type==='RECT')ctx.roundRect(x,y,w,h,2);else ctx.ellipse(x+w/2,y+h/2,Math.max(1,w/2),Math.max(1,h/2),0,0,Math.PI*2);
   ctx.fill();ctx.stroke();
+  const _lm=s.labelMode||'name';if(_lm!=='none'){const _lp=s.labelPos||'center',_cx=x+w/2,_ly=_lp==='top'?y-4:_lp==='bottom'?y+h+10:y+h/2+3;let _txt=s.name;if(_lm==='name+value'&&s.tagId){const _tg=activeTags.find(tg=>String(tg.col)===String(s.tagId));if(_tg){const _v=row.vals[_tg.col-1];if(!isNaN(_v))_txt=`${s.name} ${_tg.type==='digital'?_v>=.5?'ON':'OFF':_v.toFixed(1)}`;}}ctx.fillStyle='rgba(255,255,255,.7)';ctx.font='bold 9px Consolas,monospace';ctx.textAlign='center';ctx.fillText(_txt,_cx,_ly);}
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1310,14 +1317,14 @@ window.addEventListener('keydown',e=>{
 // ══════════════════════════════════════════════════════════════
 function makeShape(x,y,w,h,type,dynamic){
   const df=[52,152,219,180],ds=[52,152,219,255];
-  return{id:Date.now()+'_'+Math.random().toString(36).slice(2,6),name:`${type}_${DS.shapes.length+1}`,type,dynamic,tagId:'',
+  return{id:Date.now()+'_'+Math.random().toString(36).slice(2,6),name:`${type}_${DS.shapes.length+1}`,type,dynamic,tagId:'',labelMode:'name',labelPos:'center',
     minX:x,minY:y,minW:w,minH:h,minFill:[...df],minStroke:[...ds],
     maxX:dynamic?x+80:x,maxY:dynamic?y+40:y,maxW:w,maxH:h,maxFill:dynamic?[52,219,100,180]:[...df],maxStroke:dynamic?[52,219,100,255]:[...ds]};
 }
 function makeLine(points){
   return{id:Date.now()+'_'+Math.random().toString(36).slice(2,6),
     name:'Line_'+(DS.shapes.filter(s=>s.type==='LINE').length+1),
-    type:'LINE',dynamic:false,tagId:'',points,lineWidth:2,
+    type:'LINE',dynamic:false,tagId:'',labelMode:'name',points,lineWidth:2,
     minStroke:[255,255,255,255],maxStroke:[230,80,80,255]};
 }
 
@@ -1349,7 +1356,7 @@ function drawShapeDesign(ctx,s,isActive,mini){
     for(let i=1;i<s.points.length;i++)ctx.lineTo(s.points[i].x,s.points[i].y);
     ctx.stroke();
     if(isActive){s.points.forEach(p=>{ctx.fillStyle='#1a1d21';ctx.strokeStyle='rgba(60,140,255,1)';ctx.lineWidth=1.5;ctx.beginPath();ctx.rect(p.x-4,p.y-4,8,8);ctx.fill();ctx.stroke();});}
-    if(!mini){const mid=s.points[Math.floor(s.points.length/2)];ctx.fillStyle='rgba(255,255,255,.45)';ctx.font='9px Consolas,monospace';ctx.textAlign='center';ctx.fillText(s.name,mid.x,mid.y-7);}
+    if(!mini&&(s.labelMode||'name')!=='none'){const mid=s.points[Math.floor(s.points.length/2)];ctx.fillStyle='rgba(255,255,255,.45)';ctx.font='9px Consolas,monospace';ctx.textAlign='center';ctx.fillText(s.name,mid.x,mid.y-7);}
     return;
   }
   const[fr,fg,fb,fa]=s.minFill,[sr,sg,sb,sa]=s.minStroke;
@@ -1365,7 +1372,7 @@ function drawShapeDesign(ctx,s,isActive,mini){
     drawHandles(ctx,s.minX,s.minY,s.minW,s.minH,'rgba(60,140,255,1)');
     if(s.dynamic)drawHandles(ctx,s.maxX,s.maxY,s.maxW,s.maxH,'rgba(255,140,0,1)');
   }
-  if(!mini){ctx.fillStyle='rgba(255,255,255,.45)';ctx.font='9px Consolas,monospace';ctx.textAlign='center';ctx.fillText(s.name,s.minX+s.minW/2,s.minY+s.minH/2+3);}
+  if(!mini){const lm=s.labelMode||'name';if(lm!=='none'){const lp=s.labelPos||'center',cx=s.minX+s.minW/2,ly=lp==='top'?s.minY-4:lp==='bottom'?s.minY+s.minH+10:s.minY+s.minH/2+3;ctx.fillStyle='rgba(255,255,255,.45)';ctx.font='9px Consolas,monospace';ctx.textAlign='center';ctx.fillText(s.name,cx,ly);}}
 }
 function drawBody(ctx,type,x,y,w,h){ctx.beginPath();if(type==='RECT')ctx.roundRect(x,y,w,h,2);else ctx.ellipse(x+w/2,y+h/2,Math.max(1,w/2),Math.max(1,h/2),0,0,Math.PI*2);ctx.fill();ctx.stroke();}
 function drawHandles(ctx,x,y,w,h,col){[[x,y],[x+w,y+h],[x+w/2,y+h/2],[x+w,y],[x,y+h]].forEach(([px,py],i)=>{ctx.fillStyle=i===2?col:'rgba(26,29,33,1)';ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.beginPath();ctx.rect(px-4,py-4,8,8);ctx.fill();ctx.stroke();});}
@@ -1518,7 +1525,7 @@ function setActiveShape(s,isInst){
   DS.active=s;
   if(isInst){
     document.getElementById('inst-shape-props').style.display=s?'flex':'none';
-    if(s){document.getElementById('isp-name').value=s.name;document.getElementById('isp-tag').value=s.tagId||'';document.getElementById('isp-state-wrap').style.display=(s.dynamic||s.type==='LINE')?'flex':'none';DS.editState='min';document.querySelectorAll('#isp-state-wrap .stab').forEach(x=>x.classList.toggle('active',x.dataset.state==='min'));updateInstShapeProps();}
+    if(s){document.getElementById('isp-name').value=s.name;document.getElementById('isp-tag').value=s.tagId||'';document.getElementById('isp-state-wrap').style.display=(s.dynamic||s.type==='LINE')?'flex':'none';DS.editState='min';document.querySelectorAll('#isp-state-wrap .stab').forEach(x=>x.classList.toggle('active',x.dataset.state==='min'));document.getElementById('isp-label-mode').value=s.labelMode||'name';const _lp=document.getElementById('isp-label-pos');_lp.value=s.labelPos||'center';_lp.style.display=s.type==='LINE'?'none':'';updateInstShapeProps();}
   }else{
     const _sp=document.getElementById('shape-props');if(_sp)_sp.style.display=s?'block':'none';
     if(s){
@@ -1614,6 +1621,8 @@ function wireInstCol(colId,alphaId,fillOrStroke){
   document.getElementById(colId)?.addEventListener('input',upd);document.getElementById(alphaId)?.addEventListener('input',upd);
 }
 wireInstCol('isp-fill','isp-fill-a','fill');wireInstCol('isp-stroke','isp-stroke-a','stroke');
+document.getElementById('isp-label-mode').addEventListener('change',e=>{if(DS.active){DS.active.labelMode=e.target.value;drawInstDesigner();}});
+document.getElementById('isp-label-pos').addEventListener('change',e=>{if(DS.active){DS.active.labelPos=e.target.value;drawInstDesigner();}});
 document.getElementById('isp-sync').addEventListener('click',()=>{
   if(!DS.active)return;const s=DS.active;
   if(s.type==='LINE'){s.maxStroke=[...s.minStroke];}
