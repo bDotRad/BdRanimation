@@ -200,7 +200,7 @@ canvas{display:block;}
 <header id="header">
   <div style="display:flex;flex-direction:column;">
     <div id="logo-name">BdotRanimation</div>
-    <div id="logo-ver">Data Replay Engine v260504.2035</div>
+    <div id="logo-ver">Data Replay Engine v260504.2042</div>
   </div>
   <div class="hsep"></div>
   <span id="sb-status" style="font-size:9px;color:var(--text3);letter-spacing:.06em;">⏳ Connecting…</span>
@@ -244,9 +244,9 @@ canvas{display:block;}
     <!-- Instance sub-header: name + Setup/Replay buttons -->
     <div id="inst-subheader" style="display: flex;">
       <div id="subhdr-name">New Instance</div>
+      <button class="view-btn" id="vbtn-symbols" onclick="switchTab(&#39;symbols&#39;)">⬡ Symbols</button>
       <button class="view-btn active" id="vbtn-setup" onclick="switchTab(&#39;instances&#39;)">⚙ Setup</button>
       <button class="view-btn" id="vbtn-replay" onclick="handleReplayNav()">▶ Replay</button>
-      <button class="view-btn" id="vbtn-symbols" onclick="switchTab(&#39;symbols&#39;)">⬡ Symbols</button>
     </div>
 
     <!-- No instance selected state -->
@@ -1977,12 +1977,40 @@ function _drawSymSh(ctx,sh,isActive,sc){
   else if(sh.type==='CIRC'){const rx=(sh.rx||sh.r||10)*sc,ry=(sh.ry||sh.r||10)*sc;ctx.beginPath();ctx.ellipse(sh.cx*sc,sh.cy*sc,Math.max(.1,rx),Math.max(.1,ry),0,0,Math.PI*2);ctx.fill();ctx.stroke();}
   else if(sh.type==='LINE'){ctx.beginPath();sh.pts.forEach((p,i)=>i===0?ctx.moveTo(p.x*sc,p.y*sc):ctx.lineTo(p.x*sc,p.y*sc));ctx.stroke();}
   if(isActive){
-    ctx.strokeStyle='rgba(60,140,255,.9)';ctx.lineWidth=1.5;ctx.setLineDash([3,3]);
-    if(sh.type==='RECT')ctx.strokeRect(sh.x*sc-2,sh.y*sc-2,sh.w*sc+4,sh.h*sc+4);
-    else if(sh.type==='CIRC'){const rx=(sh.rx||sh.r||10)*sc,ry=(sh.ry||sh.r||10)*sc;ctx.strokeRect(sh.cx*sc-rx-2,sh.cy*sc-ry-2,(rx+2)*2,(ry+2)*2);}
-    else if(sh.type==='LINE'){ctx.setLineDash([]);sh.pts.forEach(p=>{ctx.fillStyle='rgba(60,140,255,.9)';ctx.beginPath();ctx.arc(p.x*sc,p.y*sc,4,0,Math.PI*2);ctx.fill();});}
-    ctx.setLineDash([]);
+    const COL='rgba(60,140,255,1)';
+    if(sh.type==='RECT'){
+      _symHandles(ctx,sc,[[sh.x,sh.y],[sh.x+sh.w,sh.y],[sh.x,sh.y+sh.h],[sh.x+sh.w,sh.y+sh.h],[sh.x+sh.w/2,sh.y+sh.h/2]],COL);
+    }else if(sh.type==='CIRC'){
+      const rx=sh.rx||sh.r||10,ry=sh.ry||sh.r||10;
+      _symHandles(ctx,sc,[[sh.cx-rx,sh.cy-ry],[sh.cx+rx,sh.cy-ry],[sh.cx-rx,sh.cy+ry],[sh.cx+rx,sh.cy+ry],[sh.cx,sh.cy]],COL);
+    }else if(sh.type==='LINE'){
+      sh.pts.forEach(p=>{ctx.fillStyle=COL;ctx.strokeStyle=COL;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(p.x*sc,p.y*sc,4,0,Math.PI*2);ctx.fill();});
+      const lcx=sh.pts.reduce((a,p)=>a+p.x,0)/sh.pts.length,lcy=sh.pts.reduce((a,p)=>a+p.y,0)/sh.pts.length;
+      ctx.fillStyle='rgba(26,29,33,1)';ctx.strokeStyle=COL;ctx.lineWidth=1.5;ctx.beginPath();ctx.rect(lcx*sc-4,lcy*sc-4,8,8);ctx.fill();ctx.stroke();
+    }
   }
+}
+function _symHandles(ctx,sc,pts,col){
+  pts.forEach(([px,py],i)=>{
+    ctx.fillStyle=i===4?col:'rgba(26,29,33,1)';ctx.strokeStyle=col;ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.rect(px*sc-4,py*sc-4,8,8);ctx.fill();ctx.stroke();
+  });
+}
+function getSymHandle(sh,mx,my){
+  const T=6;
+  if(sh.type==='RECT'){
+    const pts={tl:[sh.x,sh.y],tr:[sh.x+sh.w,sh.y],bl:[sh.x,sh.y+sh.h],br:[sh.x+sh.w,sh.y+sh.h],mid:[sh.x+sh.w/2,sh.y+sh.h/2]};
+    for(const[k,[px,py]]of Object.entries(pts))if(Math.abs(mx-px)<T&&Math.abs(my-py)<T)return k;
+  }else if(sh.type==='CIRC'){
+    const rx=sh.rx||sh.r||10,ry=sh.ry||sh.r||10;
+    const pts={tl:[sh.cx-rx,sh.cy-ry],tr:[sh.cx+rx,sh.cy-ry],bl:[sh.cx-rx,sh.cy+ry],br:[sh.cx+rx,sh.cy+ry],mid:[sh.cx,sh.cy]};
+    for(const[k,[px,py]]of Object.entries(pts))if(Math.abs(mx-px)<T&&Math.abs(my-py)<T)return k;
+  }else if(sh.type==='LINE'){
+    for(let i=0;i<sh.pts.length;i++)if(Math.hypot(mx-sh.pts[i].x,my-sh.pts[i].y)<T)return i;
+    const lcx=sh.pts.reduce((a,p)=>a+p.x,0)/sh.pts.length,lcy=sh.pts.reduce((a,p)=>a+p.y,0)/sh.pts.length;
+    if(Math.hypot(mx-lcx,my-lcy)<T)return 'mid';
+  }
+  return null;
 }
 function hitSymShape(mx,my){
   for(let i=symSt.shapes.length-1;i>=0;i--){
@@ -2006,12 +2034,17 @@ if(symCv){
   symCv.addEventListener('mousedown',e=>{
     const pos=symCanvasPosSnap(e);
     if(symSt.tool==='select'){
-      const hit=hitSymShape(pos.x,pos.y);symSt.active=hit;
-      if(hit){
-        if(hit.type==='RECT')symDrag={shape:hit,sx:pos.x,sy:pos.y,ox:hit.x,oy:hit.y};
-        else if(hit.type==='CIRC')symDrag={shape:hit,sx:pos.x,sy:pos.y,ocx:hit.cx,ocy:hit.cy};
-        else if(hit.type==='LINE')symDrag={shape:hit,sx:pos.x,sy:pos.y,opts:hit.pts.map(p=>({...p}))};
+      // Check handles on active shape first
+      if(symSt.active){
+        const h=getSymHandle(symSt.active,pos.x,pos.y);
+        if(h!==null){
+          const sh=symSt.active;
+          symDrag={shape:sh,handle:h,sx:pos.x,sy:pos.y,ox:sh.x,oy:sh.y,ow:sh.w,oh:sh.h,ocx:sh.cx,ocy:sh.cy,orx:sh.rx||sh.r||10,ory:sh.ry||sh.r||10,opts:sh.pts?sh.pts.map(p=>({...p})):null};
+          drawSymEditor();return;
+        }
       }
+      const hit=hitSymShape(pos.x,pos.y);symSt.active=hit;
+      if(hit){const sh=hit;symDrag={shape:sh,handle:null,sx:pos.x,sy:pos.y,ox:sh.x,oy:sh.y,ow:sh.w,oh:sh.h,ocx:sh.cx,ocy:sh.cy,orx:sh.rx||sh.r||10,ory:sh.ry||sh.r||10,opts:sh.pts?sh.pts.map(p=>({...p})):null};}
       updateSymShapeProps();drawSymEditor();
     }else if(symSt.tool==='sym_line'){
       if(!symSt.linePoints)symSt.linePoints=[{...pos}];else symSt.linePoints.push({...pos});
@@ -2021,10 +2054,24 @@ if(symCv){
   symCv.addEventListener('mousemove',e=>{
     symSt._cur=symCanvasPosSnap(e);
     if(symDrag){
-      const dx=symSt._cur.x-symDrag.sx,dy=symSt._cur.y-symDrag.sy,sh=symDrag.shape;
-      if(sh.type==='RECT'){sh.x=symDrag.ox+dx;sh.y=symDrag.oy+dy;}
-      else if(sh.type==='CIRC'){sh.cx=symDrag.ocx+dx;sh.cy=symDrag.ocy+dy;}
-      else if(sh.type==='LINE')sh.pts=symDrag.opts.map(p=>({x:p.x+dx,y:p.y+dy}));
+      const dx=symSt._cur.x-symDrag.sx,dy=symSt._cur.y-symDrag.sy,sh=symDrag.shape,h=symDrag.handle,gs=symSt.gridSize;
+      if(sh.type==='RECT'){
+        if(h===null||h==='mid'){sh.x=symDrag.ox+dx;sh.y=symDrag.oy+dy;}
+        else if(h==='br'){sh.w=Math.max(gs,symDrag.ow+dx);sh.h=Math.max(gs,symDrag.oh+dy);}
+        else if(h==='tl'){sh.x=symDrag.ox+dx;sh.y=symDrag.oy+dy;sh.w=Math.max(gs,symDrag.ow-dx);sh.h=Math.max(gs,symDrag.oh-dy);}
+        else if(h==='tr'){sh.w=Math.max(gs,symDrag.ow+dx);sh.y=symDrag.oy+dy;sh.h=Math.max(gs,symDrag.oh-dy);}
+        else if(h==='bl'){sh.x=symDrag.ox+dx;sh.w=Math.max(gs,symDrag.ow-dx);sh.h=Math.max(gs,symDrag.oh+dy);}
+      }else if(sh.type==='CIRC'){
+        const mr=gs/2;
+        if(h===null||h==='mid'){sh.cx=symDrag.ocx+dx;sh.cy=symDrag.ocy+dy;}
+        else if(h==='br'){sh.cx=symDrag.ocx+dx/2;sh.cy=symDrag.ocy+dy/2;sh.rx=Math.max(mr,symDrag.orx+dx/2);sh.ry=Math.max(mr,symDrag.ory+dy/2);}
+        else if(h==='tl'){sh.cx=symDrag.ocx+dx/2;sh.cy=symDrag.ocy+dy/2;sh.rx=Math.max(mr,symDrag.orx-dx/2);sh.ry=Math.max(mr,symDrag.ory-dy/2);}
+        else if(h==='tr'){sh.cx=symDrag.ocx+dx/2;sh.cy=symDrag.ocy+dy/2;sh.rx=Math.max(mr,symDrag.orx+dx/2);sh.ry=Math.max(mr,symDrag.ory-dy/2);}
+        else if(h==='bl'){sh.cx=symDrag.ocx+dx/2;sh.cy=symDrag.ocy+dy/2;sh.rx=Math.max(mr,symDrag.orx-dx/2);sh.ry=Math.max(mr,symDrag.ory+dy/2);}
+      }else if(sh.type==='LINE'){
+        if(typeof h==='number'){sh.pts[h].x=symDrag.opts[h].x+dx;sh.pts[h].y=symDrag.opts[h].y+dy;}
+        else{sh.pts=symDrag.opts.map(p=>({x:p.x+dx,y:p.y+dy}));}
+      }
     }
     drawSymEditor();
   });
