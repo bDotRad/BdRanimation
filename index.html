@@ -195,7 +195,7 @@ canvas{display:block;}
 <header id="header">
   <div style="display:flex;flex-direction:column;">
     <div id="logo-name">BdotRanimation</div>
-    <div id="logo-ver">Data Replay Engine v260503.1722</div>
+    <div id="logo-ver">Data Replay Engine v260504.1015</div>
   </div>
   <div class="hsep"></div>
   <span id="sb-status" style="font-size:9px;color:var(--text3);letter-spacing:.06em;">⏳ Connecting…</span>
@@ -1023,14 +1023,23 @@ async function loadInstanceIntoReplay(inst){
     }
   }
 
-  // Show missing file notice in sidebar
+  // Show missing file notice
   if(missingFiles.length){
+    if(fileSection)fileSection.style.display='block';
     const notice=document.createElement('div');
     notice.style.cssText='padding:8px 12px;font-size:10px;color:var(--accent);line-height:1.5;border-top:1px solid var(--border)';
-    notice.innerHTML=`<div style="margin-bottom:4px">⚠ ${missingFiles.length} file(s) not in storage:</div>`
-      +missingFiles.map(n=>`<div style="color:var(--text3)">${n}</div>`).join('')
-      +`<div style="margin-top:6px;color:var(--text2)">Drop the CSV files onto this panel to load them.</div>`;
+    notice.innerHTML=`<div style="margin-bottom:4px">⚠ ${missingFiles.length} CSV file(s) not in cloud:</div>`
+      +missingFiles.map(n=>`<div style="color:var(--text3);margin:1px 0">${n}</div>`).join('')
+      +`<div style="margin-top:6px;color:var(--text2)">Go to ⚙ Setup, re-upload the CSV and hit Save — or drop it here.</div>`;
     fileList.appendChild(notice);
+    // Also show a banner inside the replay panel charts area
+    const banner=document.getElementById('replay-missing-banner')||document.createElement('div');
+    banner.id='replay-missing-banner';
+    banner.style.cssText='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;font-size:11px;color:var(--accent);line-height:1.8;pointer-events:none;z-index:5;';
+    banner.innerHTML='⚠ CSV data not loaded<br><span style="color:var(--text3);font-size:10px">Go to ⚙ Setup → re-upload CSV → Save</span>';
+    const ovWrap=document.getElementById('ov-wrap');if(ovWrap&&!ovWrap.contains(banner))ovWrap.appendChild(banner);
+  }else{
+    const old=document.getElementById('replay-missing-banner');if(old)old.remove();
   }
 
   // Auto-select first entry
