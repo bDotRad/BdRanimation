@@ -200,7 +200,7 @@ canvas{display:block;}
 <header id="header">
   <div style="display:flex;flex-direction:column;">
     <div id="logo-name">BdotRanimation</div>
-    <div id="logo-ver">Data Replay Engine v260504.2042</div>
+    <div id="logo-ver">Data Replay Engine v260504.2055</div>
   </div>
   <div class="hsep"></div>
   <span id="sb-status" style="font-size:9px;color:var(--text3);letter-spacing:.06em;">⏳ Connecting…</span>
@@ -396,8 +396,11 @@ canvas{display:block;}
             <label>Fill</label><input type="color" id="sym-fill" value="#b4b4b4"><input type="range" id="sym-fill-a" min="0" max="255" value="200" style="width:44px">
             <label>Stroke</label><input type="color" id="sym-stroke" value="#787878"><input type="range" id="sym-stroke-a" min="0" max="255" value="255" style="width:44px">
             <label>Lw</label><input type="number" id="sym-lw" min="0.5" max="10" step="0.5" value="1" style="width:38px">
+            <button class="tbtn" id="sym-dup-shape" style="font-size:9px;" title="Duplicate (Ctrl+D)">⧉ Dup</button>
             <button class="tbtn danger" id="sym-del-shape" style="font-size:9px;">✕ Shape</button>
           </div>
+          <div class="sep2"></div>
+          <div id="sym-palette" style="display:flex;gap:2px;align-items:center;flex-wrap:wrap;"></div>
         </div>
         <div id="sym-editor-wrap" style="flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:8px;background:var(--bg);">
           <canvas id="sym-editor-canvas" style="cursor:crosshair;display:block;"></canvas>
@@ -2116,6 +2119,38 @@ document.getElementById('sym-tool-rect')?.addEventListener('click',()=>{symSt.to
 document.getElementById('sym-tool-circ')?.addEventListener('click',()=>{symSt.tool='sym_circ';updateSymToolBtns();});
 document.getElementById('sym-tool-line')?.addEventListener('click',()=>{symSt.tool='sym_line';updateSymToolBtns();});
 document.getElementById('sym-del-shape')?.addEventListener('click',()=>{if(!symSt.active)return;symSt.shapes=symSt.shapes.filter(s=>s!==symSt.active);symSt.active=null;updateSymShapeProps();drawSymEditor();});
+function dupSymShape(){
+  if(!symSt.active)return;
+  const copy=JSON.parse(JSON.stringify(symSt.active));
+  const off=symSt.gridSize;
+  if(copy.type==='RECT'){copy.x+=off;copy.y+=off;}
+  else if(copy.type==='CIRC'){copy.cx+=off;copy.cy+=off;}
+  else if(copy.type==='LINE')copy.pts=copy.pts.map(p=>({x:p.x+off,y:p.y+off}));
+  symSt.shapes.push(copy);symSt.active=copy;updateSymShapeProps();drawSymEditor();
+}
+document.getElementById('sym-dup-shape')?.addEventListener('click',dupSymShape);
+document.addEventListener('keydown',e=>{
+  if(currentTab!=='symbols')return;
+  if((e.ctrlKey||e.metaKey)&&e.key==='d'){e.preventDefault();dupSymShape();}
+});
+const SYM_PALETTE=['#ffffff','#c0c0c0','#808080','#404040','#181818','#e53935','#43a047','#1e88e5','#fdd835','#fb8c00','#e91e63','#8e24aa'];
+function buildSymPalette(){
+  const pal=document.getElementById('sym-palette');if(!pal)return;
+  SYM_PALETTE.forEach(hex=>{
+    const b=document.createElement('button');
+    b.style.cssText=`width:16px;height:16px;background:${hex};border:1px solid rgba(255,255,255,.2);border-radius:2px;cursor:pointer;padding:0;flex-shrink:0;`;
+    b.title=`Fill: ${hex}  |  Shift+click: Stroke`;
+    b.addEventListener('click',e=>{
+      if(!symSt.active)return;
+      const rgb=hexToRgba(hex,255);
+      if(e.shiftKey){symSt.active.stroke=[rgb[0],rgb[1],rgb[2],255];}
+      else{const a=symSt.active.fill?symSt.active.fill[3]:200;symSt.active.fill=[rgb[0],rgb[1],rgb[2],a];}
+      updateSymShapeProps();drawSymEditor();
+    });
+    pal.appendChild(b);
+  });
+}
+buildSymPalette();
 function wireSymCol(colId,alphaId,which){
   const upd=()=>{if(!symSt.active)return;const col=[...hexToRgba(document.getElementById(colId).value,parseInt(document.getElementById(alphaId).value))];if(which==='fill')symSt.active.fill=col;else symSt.active.stroke=col;drawSymEditor();};
   document.getElementById(colId)?.addEventListener('input',upd);document.getElementById(alphaId)?.addEventListener('input',upd);
