@@ -128,7 +128,7 @@ td input[type=number]{background:var(--bg4);border:1px solid transparent;color:v
 .tbtn.active{background:var(--accent2);border-color:var(--accent);color:var(--accent);}
 .tbtn.danger{color:var(--red);border-color:rgba(226,75,74,.3);}
 .sep2{width:1px;height:18px;background:var(--border);flex-shrink:0;margin:0 2px;}
-#inst-shape-props{display:none;align-items:center;gap:5px;flex-wrap:wrap;font-size:10px;color:var(--text2);}
+#inst-shape-props{display:flex;visibility:hidden;align-items:center;gap:5px;flex-wrap:wrap;font-size:10px;color:var(--text2);}
 #inst-shape-props label{color:var(--text3);font-size:9px;}
 #inst-shape-props input[type=text]{background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:10px;padding:2px 5px;border-radius:3px;width:80px;}
 #inst-shape-props select{background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:10px;padding:2px 5px;border-radius:3px;}
@@ -195,7 +195,7 @@ canvas{display:block;}
 <header id="header">
   <div style="display:flex;flex-direction:column;">
     <div id="logo-name">BdotRanimation</div>
-    <div id="logo-ver">Data Replay Engine v260504.1153</div>
+    <div id="logo-ver">Data Replay Engine v260504.1158</div>
   </div>
   <div class="hsep"></div>
   <span id="sb-status" style="font-size:9px;color:var(--text3);letter-spacing:.06em;">⏳ Connecting…</span>
@@ -326,7 +326,7 @@ canvas{display:block;}
             <button class="tbtn" id="id-tool-circ-d">◯↔ Dyn Ellipse</button>
             <button class="tbtn" id="id-tool-line">╱ Line</button>
             <div class="sep2"></div>
-            <div id="inst-shape-props" style="display: none;">
+            <div id="inst-shape-props" style="visibility:hidden;">
               <label>Name</label><input type="text" id="isp-name">
               <label>Tag</label><select id="isp-tag"><option value="">—</option></select>
               <div id="isp-state-wrap" style="display:none;gap:4px;align-items:center;">
@@ -790,7 +790,7 @@ function newInstance(){
   document.getElementById('btn-delete-inst').style.display='none';
   document.getElementById('save-status').textContent='';
   DS.shapes=[];DS.active=null;
-  document.getElementById('inst-shape-props').style.display='none';
+  document.getElementById('inst-shape-props').style.visibility='hidden';
   document.querySelectorAll('.inst-item').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.inst-item').forEach(el=>el.classList.remove('active'));
   // Show subheader for new instance (blank name)
@@ -1551,7 +1551,7 @@ document.getElementById('btn-save-designer')?.addEventListener('click',async()=>
 function setActiveShape(s,isInst){
   DS.active=s;
   if(isInst){
-    document.getElementById('inst-shape-props').style.display=s?'flex':'none';
+    document.getElementById('inst-shape-props').style.visibility=s?'visible':'hidden';
     if(s){document.getElementById('isp-name').value=s.name;document.getElementById('isp-tag').value=s.tagId||'';document.getElementById('isp-state-wrap').style.display=(s.dynamic||s.type==='LINE')?'flex':'none';DS.editState='min';document.querySelectorAll('#isp-state-wrap .stab').forEach(x=>x.classList.toggle('active',x.dataset.state==='min'));document.getElementById('isp-label-mode').value=s.labelMode||'name';updateInstShapeProps();}
   }else{
     const _sp=document.getElementById('shape-props');if(_sp)_sp.style.display=s?'block':'none';
