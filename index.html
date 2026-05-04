@@ -195,7 +195,7 @@ canvas{display:block;}
 <header id="header">
   <div style="display:flex;flex-direction:column;">
     <div id="logo-name">BdotRanimation</div>
-    <div id="logo-ver">Data Replay Engine v260504.1146</div>
+    <div id="logo-ver">Data Replay Engine v260504.1153</div>
   </div>
   <div class="hsep"></div>
   <span id="sb-status" style="font-size:9px;color:var(--text3);letter-spacing:.06em;">⏳ Connecting…</span>
@@ -1355,7 +1355,10 @@ function drawShapeDesign(ctx,s,isActive,mini){
     ctx.beginPath();ctx.moveTo(s.points[0].x,s.points[0].y);
     for(let i=1;i<s.points.length;i++)ctx.lineTo(s.points[i].x,s.points[i].y);
     ctx.stroke();
-    if(isActive){s.points.forEach(p=>{ctx.fillStyle='#1a1d21';ctx.strokeStyle='rgba(60,140,255,1)';ctx.lineWidth=1.5;ctx.beginPath();ctx.rect(p.x-4,p.y-4,8,8);ctx.fill();ctx.stroke();});}
+    if(isActive){
+      s.points.forEach(p=>{ctx.fillStyle='#1a1d21';ctx.strokeStyle='rgba(60,140,255,1)';ctx.lineWidth=1.5;ctx.beginPath();ctx.rect(p.x-4,p.y-4,8,8);ctx.fill();ctx.stroke();});
+      const _c=lineCentroid(s);ctx.fillStyle='rgba(60,140,255,1)';ctx.strokeStyle='rgba(255,255,255,.8)';ctx.lineWidth=1;ctx.beginPath();ctx.rect(_c.x-5,_c.y-5,10,10);ctx.fill();ctx.stroke();
+    }
     if(!mini&&(s.labelMode||'name')!=='none'){const mid=s.points[Math.floor(s.points.length/2)],o=s.labelOffset||{x:0,y:0},lx=mid.x+o.x,ly=mid.y-7+o.y;ctx.fillStyle='rgba(255,255,255,.45)';ctx.font='9px Consolas,monospace';ctx.textAlign='center';ctx.fillText(s.name,lx,ly);if(isActive){const tw=ctx.measureText(s.name).width;ctx.strokeStyle='rgba(60,140,255,.6)';ctx.lineWidth=1;ctx.setLineDash([2,3]);ctx.strokeRect(lx-tw/2-2,ly-9,tw+4,12);ctx.setLineDash([]);}}
     return;
   }
@@ -1381,6 +1384,8 @@ let dDrag=null;
 function canvasPos(e,cv){const r=cv.getBoundingClientRect();return{x:snap(e.clientX-r.left),y:snap(e.clientY-r.top)};}
 function getHandle(s,mx,my,state){if(s.type==='LINE')return null;const x=s[state+'X'],y=s[state+'Y'],w=s[state+'W'],h=s[state+'H'];const pts={tl:[x,y],br:[x+w,y+h],mid:[x+w/2,y+h/2],tr:[x+w,y],bl:[x,y+h]};for(const[k,[px,py]]of Object.entries(pts)){if(Math.abs(mx-px)<8&&Math.abs(my-py)<8)return k;}return null;}
 function hitLine(s,mx,my){if(!s.points||s.points.length<2)return false;const T=7;for(let i=0;i<s.points.length-1;i++){const p1=s.points[i],p2=s.points[i+1],dx=p2.x-p1.x,dy=p2.y-p1.y,len2=dx*dx+dy*dy;if(!len2)continue;const t=Math.max(0,Math.min(1,((mx-p1.x)*dx+(my-p1.y)*dy)/len2));if(Math.hypot(mx-p1.x-t*dx,my-p1.y-t*dy)<T)return true;}return false;}
+function lineCentroid(s){const n=s.points.length;return{x:s.points.reduce((a,p)=>a+p.x,0)/n,y:s.points.reduce((a,p)=>a+p.y,0)/n};}
+function getLinePointHandle(s,mx,my){for(let i=0;i<s.points.length;i++){if(Math.hypot(mx-s.points[i].x,my-s.points[i].y)<8)return i;}return -1;}
 function hitShape(mx,my){for(let i=DS.shapes.length-1;i>=0;i--){const s=DS.shapes[i];if(s.type==='LINE'){if(hitLine(s,mx,my))return s;continue;}if(mx>=s.minX&&mx<=s.minX+s.minW&&my>=s.minY&&my<=s.minY+s.minH)return s;if(s.dynamic&&mx>=s.maxX&&mx<=s.maxX+s.maxW&&my>=s.maxY&&my<=s.maxY+s.maxH)return s;}return null;}
 
 function finishLine(isInst,drawFn){
@@ -1412,6 +1417,12 @@ function setupDesignerMouse(cv,drawFn,isInst){
       if(Math.hypot(x-_blx,y-_bly)<14){dDrag={cv,type:'labelDrag',shape:_s,sx:x,sy:y,ox:_o.x,oy:_o.y};return;}
     }
     if(DS.active){
+      if(DS.active.type==='LINE'&&DS.active.points?.length){
+        const _c=lineCentroid(DS.active);
+        if(Math.hypot(x-_c.x,y-_c.y)<8){dDrag={cv,type:'move',shape:DS.active,sx:x,sy:y,oxPoints:DS.active.points.map(p=>({...p}))};return;}
+        const _pi=getLinePointHandle(DS.active,x,y);
+        if(_pi>=0){dDrag={cv,type:'linePoint',shape:DS.active,sx:x,sy:y,pointIdx:_pi,ox:DS.active.points[_pi].x,oy:DS.active.points[_pi].y};return;}
+      }
       const hm=getHandle(DS.active,x,y,'min');
       if(hm){dDrag={cv,type:'handle_min',handle:hm,shape:DS.active,sx:x,sy:y,ox:DS.active.minX,oy:DS.active.minY,ow:DS.active.minW,oh:DS.active.minH};return;}
       if(DS.active.dynamic){const hg=getHandle(DS.active,x,y,'max');if(hg){dDrag={cv,type:'handle_max',handle:hg,shape:DS.active,sx:x,sy:y,ox:DS.active.maxX,oy:DS.active.maxY,ow:DS.active.maxW,oh:DS.active.maxH};return;}}
@@ -1437,6 +1448,10 @@ function setupDesignerMouse(cv,drawFn,isInst){
     if(dDrag.type==='labelDrag'){
       if(!s.labelOffset)s.labelOffset={x:0,y:0};
       s.labelOffset.x=dDrag.ox+dx;s.labelOffset.y=dDrag.oy+dy;
+      drawFn();return;
+    }
+    if(dDrag.type==='linePoint'){
+      s.points[dDrag.pointIdx]={x:snap(dDrag.ox+dx),y:snap(dDrag.oy+dy)};
       drawFn();return;
     }
     if(dDrag.type==='move'){
