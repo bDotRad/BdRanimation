@@ -195,7 +195,7 @@ canvas{display:block;}
 <header id="header">
   <div style="display:flex;flex-direction:column;">
     <div id="logo-name">BdotRanimation</div>
-    <div id="logo-ver">Data Replay Engine v260504.1045</div>
+    <div id="logo-ver">Data Replay Engine v260504.1114</div>
   </div>
   <div class="hsep"></div>
   <span id="sb-status" style="font-size:9px;color:var(--text3);letter-spacing:.06em;">⏳ Connecting…</span>
@@ -440,23 +440,26 @@ const _SB_URL='https://lpinlvtxgefhzunuzsak.supabase.co';
 const _SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxwaW5sdnR4Z2VmaHp1bnV6c2FrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3OTU1OTIsImV4cCI6MjA5MzM3MTU5Mn0.JKdk3cbN6uigtuqCgrTtHTtvWAZnBW1wY3ofApDKadk';
 const sb=supabase.createClient(_SB_URL,_SB_KEY);
 let sbReady=false;
-let sbCsvsReady=false;
 
 async function sbCheck(){
   try{ const{error}=await sb.from('instances').select('id').limit(1); sbReady=!error; }catch(e){ sbReady=false; }
-  try{ const{error}=await sb.from('csvs').select('id').limit(1); sbCsvsReady=!error; }catch(e){ sbCsvsReady=false; }
   const el=document.getElementById('sb-status');
-  if(!sbReady){
-    if(el){el.textContent='⚠ DB offline — check Supabase';el.style.color='var(--red)';}
-  }else if(!sbCsvsReady){
-    if(el){el.textContent='⚠ csvs table missing — run setup SQL';el.style.color='var(--red)';}
-  }else{
-    if(el){el.textContent='☁ Cloud connected';el.style.color='var(--accent)';}
-  }
+  if(el){el.textContent=sbReady?'☁ Cloud connected':'⚠ DB offline — check Supabase';el.style.color=sbReady?'var(--accent)':'var(--red)';}
   return sbReady;
 }
 
-// ── Supabase-backed storage (mem cache + cloud) ──
+// ── Supabase-backed storage ──
+// CSV content is stored inside data_files on the instance row:
+//   data_files: [{name: "foo.csv", content: "..."}, ...]
+// No separate csvs table needed.
+
+function _instFromRow(r){
+  const inst={id:r.id,name:r.name,description:r.description,tags:r.tags||[],shapes:r.shapes||[],dataFiles:r.data_files||[]};
+  // Populate memory CSV cache from inline content
+  (r.data_files||[]).forEach(f=>{if(f.content)memSaveCSV(r.id,f.name,f.content);});
+  return inst;
+}
+
 async function fsSaveInstance(inst){
   memSaveInstance(inst);
   if(!sbReady)return;
@@ -471,43 +474,31 @@ async function fsLoadInstance(id){
   if(!sbReady)return null;
   const{data,error}=await sb.from('instances').select('*').eq('id',id).single();
   if(error||!data)return null;
-  const inst={id:data.id,name:data.name,description:data.description,tags:data.tags||[],shapes:data.shapes||[],dataFiles:data.data_files||[]};
-  memSaveInstance(inst); return inst;
+  const inst=_instFromRow(data);memSaveInstance(inst);return inst;
 }
 async function fsLoadAllInstances(){
   if(sbReady){
     const{data,error}=await sb.from('instances').select('*').order('name');
-    if(!error&&data){
-      data.forEach(r=>{ if(!memInstances[r.id]) memInstances[r.id]={id:r.id,name:r.name,description:r.description,tags:r.tags||[],shapes:r.shapes||[],dataFiles:r.data_files||[]}; });
-    }
+    if(!error&&data){data.forEach(r=>{if(!memInstances[r.id]){const inst=_instFromRow(r);memSaveInstance(inst);}});}
   }
   return memLoadAllInstances();
 }
 async function fsDeleteInstance(id){
   memDeleteInstance(id);
-  if(sbReady) await sb.from('instances').delete().eq('id',id);
+  if(sbReady)await sb.from('instances').delete().eq('id',id);
 }
-async function fsSaveCSV(instId,filename,text){
+function fsSaveCSV(instId,filename,text){
+  // CSV content lives in the instance's dataFiles array; persisted when instance is saved
   memSaveCSV(instId,filename,text);
-  if(!sbReady||!sbCsvsReady)return sbCsvsReady===false?{message:'csvs table not created — run setup SQL in Supabase dashboard'}:null;
-  const{error}=await sb.from('csvs').upsert({inst_id:instId,filename,content:text},{onConflict:'inst_id,filename'});
-  if(error){console.warn('Supabase CSV save:',error.message);return error;}
-  return null;
-}
-async function fsLoadCSV(instId,filename){
-  const m=memLoadCSV(instId,filename); if(m)return m;
-  if(!sbReady)return null;
-  const{data,error}=await sb.from('csvs').select('content').eq('inst_id',instId).eq('filename',filename).single();
-  if(error||!data)return null;
-  memSaveCSV(instId,filename,data.content); return data.content;
 }
 async function fsLoadAllCSVsForInstance(instId){
-  const m=memLoadAllCSVsForInstance(instId); if(m.length)return m;
-  if(!sbReady||!sbCsvsReady)return [];
-  const{data,error}=await sb.from('csvs').select('filename,content').eq('inst_id',instId);
-  if(error||!data)return [];
-  data.forEach(r=>memSaveCSV(instId,r.filename,r.content));
-  return data.map(r=>({name:r.filename,text:r.content}));
+  const m=memLoadAllCSVsForInstance(instId);if(m.length)return m;
+  if(!sbReady)return[];
+  const{data,error}=await sb.from('instances').select('data_files').eq('id',instId).single();
+  if(error||!data)return[];
+  const files=(data.data_files||[]).filter(f=>f.content);
+  files.forEach(f=>memSaveCSV(instId,f.name,f.content));
+  return files.map(f=>({name:f.name,text:f.content}));
 }
 
 
@@ -862,7 +853,8 @@ function handleInstCSV(files){
         if(hint)hint.style.display='none';
       }
       if(!editingInstance.dataFiles)editingInstance.dataFiles=[];
-      if(!editingInstance.dataFiles.find(f=>f.name===file.name))editingInstance.dataFiles.push({name:file.name});
+      const _df=editingInstance.dataFiles.find(f=>f.name===file.name);
+      if(_df){_df.content=ev.target.result;}else{editingInstance.dataFiles.push({name:file.name,content:ev.target.result});}
     };
     r.readAsText(file);
   });
@@ -914,28 +906,22 @@ document.getElementById('btn-save-inst').onclick=async()=>{
   editingInstance.name=document.getElementById('f-name').value.trim()||id;
   editingInstance.description=document.getElementById('f-desc').value.trim();
   editingInstance.shapes=DS.shapes;
-  // Save instance first (CSVs have a foreign key to instances.id)
-  await fsSaveInstance(editingInstance);
-  const csvErrors=[];
+  // Merge any newly-uploaded CSVs into dataFiles (content travels with the instance)
   for(const f of formCsvFiles){
-    const err=await fsSaveCSV(id, f.name, f.text);
-    if(err)csvErrors.push(`${f.name}: ${err.message}`);
+    fsSaveCSV(id,f.name,f.text);
+    const df=editingInstance.dataFiles.find(d=>d.name===f.name);
+    if(df){df.content=f.text;}else{editingInstance.dataFiles.push({name:f.name,content:f.text});}
   }
+  await fsSaveInstance(editingInstance);
   activeInstance=editingInstance;
   activeTags=editingInstance.tags||[];
   const ss=document.getElementById('save-status');
-  if(csvErrors.length){
-    ss.textContent='⚠ CSV save failed: '+csvErrors[0];
-    ss.style.color='var(--red)';ss.style.display='inline';
-    setTimeout(()=>{ss.style.display='none';ss.style.color='';},6000);
-  }else{
-    ss.textContent='✓ Saved '+(new Date().toLocaleTimeString());
-    ss.style.color='';ss.style.display='inline';
-    setTimeout(()=>{ss.style.display='none';},3000);
-  }
+  ss.textContent='✓ Saved '+(new Date().toLocaleTimeString());
+  ss.style.color='';ss.style.display='inline';
+  setTimeout(()=>{ss.style.display='none';},3000);
   const saveBtn=document.getElementById('btn-save-inst');
   const origText=saveBtn.textContent;
-  saveBtn.textContent=csvErrors.length?'⚠ Partial':'✓ Saved';
+  saveBtn.textContent='✓ Saved';
   saveBtn.disabled=true;
   setTimeout(()=>{saveBtn.textContent=origText;saveBtn.disabled=false;},1500);
   document.getElementById('btn-delete-inst').style.display='block';
@@ -1047,9 +1033,9 @@ async function loadInstanceIntoReplay(inst){
     if(fileSection)fileSection.style.display='block';
     const notice=document.createElement('div');
     notice.style.cssText='padding:8px 12px;font-size:10px;color:var(--accent);line-height:1.5;border-top:1px solid var(--border)';
-    notice.innerHTML=`<div style="margin-bottom:4px">⚠ ${missingFiles.length} CSV file(s) not in cloud:</div>`
+    notice.innerHTML=`<div style="margin-bottom:4px">⚠ ${missingFiles.length} CSV file(s) missing:</div>`
       +missingFiles.map(n=>`<div style="color:var(--text3);margin:1px 0">${n}</div>`).join('')
-      +`<div style="margin-top:6px;color:var(--text2)">Go to ⚙ Setup, re-upload the CSV and hit Save — or drop it here.</div>`;
+      +`<div style="margin-top:6px;color:var(--text2)">Go to ⚙ Setup → re-upload CSV → Save.</div>`;
     fileList.appendChild(notice);
     // Also show a banner inside the replay panel charts area
     const banner=document.getElementById('replay-missing-banner')||document.createElement('div');
