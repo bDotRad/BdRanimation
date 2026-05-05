@@ -200,7 +200,7 @@ canvas{display:block;}
 <header id="header">
   <div style="display:flex;flex-direction:column;">
     <div id="logo-name">BdotRanimation</div>
-    <div id="logo-ver">Data Replay Engine v260505.0657</div>
+    <div id="logo-ver">Data Replay Engine v260505.1758</div>
   </div>
   <div class="hsep"></div>
   <span id="sb-status" style="font-size:9px;color:var(--text3);letter-spacing:.06em;">⏳ Connecting…</span>
@@ -697,6 +697,11 @@ function fmtVal(v,tag,withUnits=true){if(tag.type==='digital')return v>=.5?'ON':
 // CSV PARSING
 // ══════════════════════════════════════════════════════════════
 function parseCSV(text){
+  text=text.replace(/^﻿/,'');
+  if(text.split(/\r?\n/)[0].includes('Selected(x)'))return parsePICSV(text);
+  return parseLegacyCSV(text);
+}
+function parseLegacyCSV(text){
   const lines=text.trim().split(/\r?\n/),rows=[];let hasSec=false;
   const headers=lines[0].split(',').map(h=>h.trim());
   for(let i=1;i<lines.length;i++){
@@ -708,6 +713,39 @@ function parseCSV(text){
   rows.sort((a,b)=>a.time-b.time);
   if(!hasSec&&rows.length){const base=new Date(rows[0].time);for(let i=0;i<rows.length;i++)rows[i].time=new Date(base.getTime()+i*1000);}
   return{headers,rows};
+}
+// PI historian export: wide format with tag metadata rows + data rows
+function parsePIDescription(desc,engunits){
+  const semi=desc.indexOf(';');
+  let clean=(semi>=0?desc.slice(0,semi):desc).trim();
+  let units=(engunits||'').trim();
+  if(!units){const bm=clean.match(/\[([^\]]+)\]/);if(bm)units=bm[1];}
+  clean=clean.replace(/\s*\[.*?\]/g,'').trim();
+  return{name:clean.slice(0,30)||'tag',units};
+}
+function parsePICSV(text){
+  const lines=text.trim().split(/\r?\n/);
+  const hdr=lines[0].split(',').map(h=>h.trim());
+  const tsIdx=hdr.findIndex(h=>h.toLowerCase()==='timestamp');
+  if(tsIdx<0)return parseLegacyCSV(text);
+  const nameIdx=hdr.findIndex(h=>h==='Name');
+  const descIdx=hdr.findIndex(h=>h==='Description');
+  const unitsIdx=hdr.findIndex(h=>h==='engunits');
+  const digitsIdx=hdr.findIndex(h=>h==='displaydigits');
+  const typeIdx=hdr.findIndex(h=>h==='pointtype');
+  const nTags=hdr.length-tsIdx-1;
+  const tagDefs=[];const rows=[];
+  for(let i=1;i<lines.length;i++){
+    const p=lines[i].split(',');
+    if(p[0]?.trim()==='x'){
+      tagDefs.push({csvCol:p[nameIdx]?.trim()||'',description:p[descIdx]?.trim()||'',units:p[unitsIdx]?.trim()||'',displaydigits:parseInt(p[digitsIdx])||0,pointtype:p[typeIdx]?.trim()||''});
+    }
+    const tsRaw=p[tsIdx]?.trim();
+    if(tsRaw){const t=parseTime(tsRaw);if(t){const vals=[];for(let j=0;j<nTags;j++)vals.push(parseFloat((p[tsIdx+1+j]||'').trim()));rows.push({time:t,vals});}}
+  }
+  rows.sort((a,b)=>a.time-b.time);
+  const headers=['Timestamp',...tagDefs.map(d=>d.csvCol)];
+  return{headers,rows,piTagDefs:tagDefs};
 }
 function parseTime(s){
   let m=s.match(/(\d+)-(\w+)-(\d+)\s+(\d+):(\d+):?(\d*)/);
@@ -734,23 +772,26 @@ function friendlyTagName(h){
   return parts[parts.length-1].replace(/_/g,' ').slice(0,20);
 }
 
-function detectTagsFromCSV(headers,rows){
+function detectTagsFromCSV(headers,rows,piTagDefs){
   return headers.slice(1).map((h,i)=>{
     const vals=rows.map(r=>r.vals[i]);
-    const type=guessType(vals);
+    const pi=piTagDefs?.[i];
+    const type=pi?.pointtype==='Float32'?'analog':guessType(vals);
     const nonNaN=vals.filter(v=>!isNaN(v));
     const mn=nonNaN.length?Math.min(...nonNaN):0;
     const mx=nonNaN.length?Math.max(...nonNaN):1;
+    const{name,units}=pi?parsePIDescription(pi.description,pi.units):{name:friendlyTagName(h),units:''};
+    const decimals=type==='digital'?0:pi?Math.min(Math.max(Math.abs(pi.displaydigits),1),4):1;
     return{
-      col:i+1,           // 1-based column in vals array (index 0 = first data col)
-      csvCol:h,          // raw CSV header
-      name:friendlyTagName(h),
+      col:i+1,
+      csvCol:h,
+      name,
       type,
       stroke:TAG_COLOURS[i%TAG_COLOURS.length],
       range_min:type==='analog'?parseFloat(mn.toFixed(2)):0,
       range_max:type==='analog'?parseFloat(mx.toFixed(2)):1,
-      decimals:1,
-      units:''
+      decimals,
+      units
     };
   });
 }
@@ -906,7 +947,7 @@ function handleInstCSV(files){
     if(!file.name.endsWith('.csv'))return;
     const r=new FileReader();
     r.onload=ev=>{
-      const {headers,rows}=parseCSV(ev.target.result);
+      const {headers,rows,piTagDefs}=parseCSV(ev.target.result);
       const entry={name:file.name,text:ev.target.result,rows,headers};
       // Remove existing with same name
       formCsvFiles=formCsvFiles.filter(f=>f.name!==file.name);
@@ -916,7 +957,7 @@ function handleInstCSV(files){
       addCsvChip(file.name,entry);
       // Auto-detect tags from first uploaded file (or merge if already have tags)
       if(!editingInstance.tags||!editingInstance.tags.length){
-        const detected=detectTagsFromCSV(headers,rows);
+        const detected=detectTagsFromCSV(headers,rows,piTagDefs);
         editingInstance.tags=detected;
         activeTags=detected;
         document.getElementById('tag-section').style.display='block';
