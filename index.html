@@ -200,7 +200,7 @@ canvas{display:block;}
 <header id="header">
   <div style="display:flex;flex-direction:column;">
     <div id="logo-name">BdotRanimation</div>
-    <div id="logo-ver">Data Replay Engine v260505.1758</div>
+    <div id="logo-ver">Data Replay Engine v260505.1805</div>
   </div>
   <div class="hsep"></div>
   <span id="sb-status" style="font-size:9px;color:var(--text3);letter-spacing:.06em;">⏳ Connecting…</span>
@@ -721,7 +721,7 @@ function parsePIDescription(desc,engunits){
   let units=(engunits||'').trim();
   if(!units){const bm=clean.match(/\[([^\]]+)\]/);if(bm)units=bm[1];}
   clean=clean.replace(/\s*\[.*?\]/g,'').trim();
-  return{name:clean.slice(0,30)||'tag',units};
+  return{name:clean||'tag',units};
 }
 function parsePICSV(text){
   const lines=text.trim().split(/\r?\n/);
@@ -768,8 +768,8 @@ const STRIP_SUFFIXES=['oRawOutput','qInput'];
 function friendlyTagName(h){
   const parts=h.split('.');
   if(parts.length>1&&STRIP_SUFFIXES.includes(parts[parts.length-1]))
-    return parts.slice(0,-1).join('.').replace(/_/g,' ').slice(0,20);
-  return parts[parts.length-1].replace(/_/g,' ').slice(0,20);
+    return parts.slice(0,-1).join('.').replace(/_/g,' ');
+  return parts[parts.length-1].replace(/_/g,' ');
 }
 
 function detectTagsFromCSV(headers,rows,piTagDefs){
