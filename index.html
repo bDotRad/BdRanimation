@@ -200,7 +200,7 @@ canvas{display:block;}
 <header id="header">
   <div style="display:flex;flex-direction:column;">
     <div id="logo-name">BdotRanimation</div>
-    <div id="logo-ver">Data Replay Engine v260505.1805</div>
+    <div id="logo-ver">Data Replay Engine v260505.1901</div>
   </div>
   <div class="hsep"></div>
   <span id="sb-status" style="font-size:9px;color:var(--text3);letter-spacing:.06em;">⏳ Connecting…</span>
@@ -349,8 +349,8 @@ canvas{display:block;}
                 <button class="stab active" data-state="min">MIN</button>
                 <button class="stab" data-state="max">MAX</button>
               </div>
-              <label>Fill</label><input type="color" id="isp-fill"><input type="range" id="isp-fill-a" min="0" max="255" value="180">
-              <label>Stroke</label><input type="color" id="isp-stroke"><input type="range" id="isp-stroke-a" min="0" max="255" value="255">
+              <label>Fill</label><input type="color" id="isp-fill"><input type="range" id="isp-fill-a" min="0" max="10" step="1" value="7"><span id="isp-fill-a-lbl" style="font-size:9px;color:var(--text3);min-width:24px">70%</span>
+              <label>Stroke</label><input type="color" id="isp-stroke"><input type="range" id="isp-stroke-a" min="0" max="10" step="1" value="10"><span id="isp-stroke-a-lbl" style="font-size:9px;color:var(--text3);min-width:24px">100%</span>
               <div id="inst-palette" style="display:flex;gap:2px;align-items:center;flex-wrap:wrap;margin-left:2px;"></div>
               <div class="sep2"></div>
               <label>Label</label>
@@ -396,8 +396,8 @@ canvas{display:block;}
             <button class="tbtn" id="sym-tool-line">╱ Line</button>
             <div class="sep2"></div>
             <div id="sym-shape-props" style="display:none;align-items:center;gap:4px;">
-              <label>Fill</label><input type="color" id="sym-fill" value="#b4b4b4"><input type="range" id="sym-fill-a" min="0" max="255" value="200" style="width:44px">
-              <label>Stroke</label><input type="color" id="sym-stroke" value="#787878"><input type="range" id="sym-stroke-a" min="0" max="255" value="255" style="width:44px">
+              <label>Fill</label><input type="color" id="sym-fill" value="#b4b4b4"><input type="range" id="sym-fill-a" min="0" max="10" step="1" value="8" style="width:44px"><span id="sym-fill-a-lbl" style="font-size:9px;color:var(--text3)">80%</span>
+              <label>Stroke</label><input type="color" id="sym-stroke" value="#787878"><input type="range" id="sym-stroke-a" min="0" max="10" step="1" value="10" style="width:44px"><span id="sym-stroke-a-lbl" style="font-size:9px;color:var(--text3)">100%</span>
               <label>Lw</label><input type="number" id="sym-lw" min="0.5" max="10" step="0.5" value="1" style="width:38px">
               <button class="tbtn" id="sym-dup-shape" style="font-size:9px;" title="Duplicate (Ctrl+D)">⧉ Dup</button>
               <button class="tbtn danger" id="sym-del-shape" style="font-size:9px;">✕ Shape</button>
@@ -1870,8 +1870,10 @@ function wireInstCol(colId,alphaId,fillOrStroke){
     // For LINE: both pickers control stroke (line has no fill)
     const effKey=s.type==='LINE'?'Stroke':(fillOrStroke==='fill'?'Fill':'Stroke');
     const key=st+effKey;
-    s[key]=hexToRgba(document.getElementById(colId).value,parseInt(document.getElementById(alphaId).value));
+    const av=parseInt(document.getElementById(alphaId).value);
+    s[key]=hexToRgba(document.getElementById(colId).value,Math.round(av*25.5));
     if(!s.dynamic&&s.type!=='LINE')s['max'+effKey]=[...s[key]];
+    const lbl=document.getElementById(alphaId+'-lbl');if(lbl)lbl.textContent=av*10+'%';
     drawInstDesigner();
   };
   document.getElementById(colId)?.addEventListener('input',upd);document.getElementById(alphaId)?.addEventListener('input',upd);
@@ -1928,8 +1930,11 @@ function updateInstShapeProps(){
   const st=(s.dynamic||s.type==='LINE')?DS.editState:'min';
   const col=s.type==='LINE'?s[st+'Stroke']:s[st+'Fill'];
   const stroke=s[st+'Stroke']||s.minStroke;
-  document.getElementById('isp-fill').value=rgbaToHex(col);document.getElementById('isp-fill-a').value=col[3];
-  document.getElementById('isp-stroke').value=rgbaToHex(stroke);document.getElementById('isp-stroke-a').value=stroke[3];
+  const fa=Math.round(col[3]/25.5),sa=Math.round(stroke[3]/25.5);
+  document.getElementById('isp-fill').value=rgbaToHex(col);document.getElementById('isp-fill-a').value=fa;
+  document.getElementById('isp-stroke').value=rgbaToHex(stroke);document.getElementById('isp-stroke-a').value=sa;
+  const fl=document.getElementById('isp-fill-a-lbl');if(fl)fl.textContent=fa*10+'%';
+  const sl=document.getElementById('isp-stroke-a-lbl');if(sl)sl.textContent=sa*10+'%';
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -2185,8 +2190,11 @@ function updateSymShapeProps(){
   const sh=symSt.active,sp=document.getElementById('sym-shape-props');if(!sp)return;
   sp.style.display=sh?'flex':'none';if(!sh)return;
   const fill=sh.fill||[180,180,180,200],stroke=sh.stroke||[120,120,120,255];
-  document.getElementById('sym-fill').value=rgbaToHex(fill);document.getElementById('sym-fill-a').value=fill[3];
-  document.getElementById('sym-stroke').value=rgbaToHex(stroke);document.getElementById('sym-stroke-a').value=stroke[3];
+  const fa=Math.round(fill[3]/25.5),sa=Math.round(stroke[3]/25.5);
+  document.getElementById('sym-fill').value=rgbaToHex(fill);document.getElementById('sym-fill-a').value=fa;
+  document.getElementById('sym-stroke').value=rgbaToHex(stroke);document.getElementById('sym-stroke-a').value=sa;
+  const fl=document.getElementById('sym-fill-a-lbl');if(fl)fl.textContent=fa*10+'%';
+  const sl=document.getElementById('sym-stroke-a-lbl');if(sl)sl.textContent=sa*10+'%';
   document.getElementById('sym-lw').value=sh.lw||1;
 }
 // ── Wire sym toolbar ──
@@ -2228,7 +2236,7 @@ function buildSymPalette(){
 }
 buildSymPalette();
 function wireSymCol(colId,alphaId,which){
-  const upd=()=>{if(!symSt.active)return;const col=[...hexToRgba(document.getElementById(colId).value,parseInt(document.getElementById(alphaId).value))];if(which==='fill')symSt.active.fill=col;else symSt.active.stroke=col;drawSymEditor();};
+  const upd=()=>{if(!symSt.active)return;const av=parseInt(document.getElementById(alphaId).value);const col=[...hexToRgba(document.getElementById(colId).value,Math.round(av*25.5))];if(which==='fill')symSt.active.fill=col;else symSt.active.stroke=col;const lbl=document.getElementById(alphaId+'-lbl');if(lbl)lbl.textContent=av*10+'%';drawSymEditor();};
   document.getElementById(colId)?.addEventListener('input',upd);document.getElementById(alphaId)?.addEventListener('input',upd);
 }
 wireSymCol('sym-fill','sym-fill-a','fill');wireSymCol('sym-stroke','sym-stroke-a','stroke');
